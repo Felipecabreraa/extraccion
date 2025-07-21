@@ -88,7 +88,7 @@ function Test-Gitignore {
 }
 
 # Configurar ramas principales
-function Setup-Branches {
+function Set-Branches {
     Write-Info "Configurando ramas principales..."
     
     # Verificar si ya existe la rama main
@@ -124,7 +124,7 @@ function Setup-Branches {
 }
 
 # Configurar hooks de Git (opcional)
-function Setup-Hooks {
+function Set-Hooks {
     Write-Info "Configurando hooks de Git..."
     
     # Crear directorio hooks si no existe
@@ -160,7 +160,7 @@ echo "Pre-commit hooks pasaron exitosamente"
 }
 
 # Configurar alias útiles
-function Setup-Aliases {
+function Set-Aliases {
     Write-Info "Configurando alias de Git..."
     
     # Alias para ver el estado de forma más clara
@@ -182,7 +182,7 @@ function Setup-Aliases {
 }
 
 # Crear archivo de configuración de Git
-function Create-GitConfig {
+function New-GitConfig {
     Write-Info "Creando archivo de configuración Git..."
     
     $gitConfigContent = @"
@@ -242,7 +242,7 @@ function Create-GitConfig {
 }
 
 # Crear script de workflow para Windows
-function Create-WorkflowScript {
+function New-WorkflowScript {
     Write-Info "Creando script de workflow para Windows..."
     
     $workflowContent = @"
@@ -478,11 +478,11 @@ function Main {
     Test-Git
     Test-GitRepo
     Test-Gitignore
-    Setup-Branches
-    Setup-Hooks
-    Setup-Aliases
-    Create-GitConfig
-    Create-WorkflowScript
+    Set-Branches
+    Set-Hooks
+    Set-Aliases
+    New-GitConfig
+    New-WorkflowScript
     
     Write-Info ""
     Write-Info "✅ Configuración completada exitosamente!"
