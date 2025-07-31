@@ -1,8 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-console.log('🔧 Configurando archivo .env para el backend...');
-
 const envContent = `# Configuración de Desarrollo
 NODE_ENV=development
 PORT=3001
@@ -11,11 +9,11 @@ PORT=3001
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=
-DB_NAME=extraccion
+DB_NAME=trn_extraccion
 DB_PORT=3306
 
 # JWT
-JWT_SECRET=secreto_super_seguro_desarrollo_2024
+JWT_SECRET=secreto_super_seguro_desarrollo
 JWT_EXPIRES_IN=24h
 
 # CORS
@@ -38,17 +36,10 @@ SMTP_PASS=tu_password_app
 const envPath = path.join(__dirname, '.env');
 
 try {
-  if (fs.existsSync(envPath)) {
-    console.log('✅ El archivo .env ya existe');
-  } else {
-    fs.writeFileSync(envPath, envContent);
-    console.log('✅ Archivo .env creado exitosamente');
-  }
-  
-  console.log('📝 Configuración del archivo .env completada');
+  fs.writeFileSync(envPath, envContent);
+  console.log('✅ Archivo .env creado exitosamente');
+  console.log('📁 Ubicación:', envPath);
   console.log('⚠️  Asegúrate de configurar la contraseña de la base de datos si es necesario');
-  
 } catch (error) {
-  console.error('❌ Error creando el archivo .env:', error.message);
-  process.exit(1);
+  console.error('❌ Error creando archivo .env:', error.message);
 } 

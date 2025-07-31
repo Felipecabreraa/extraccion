@@ -25,6 +25,8 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const pabellonMaquinaRoutes = require('./routes/pabellonMaquinaRoutes');
 const bulkUploadRoutes = require('./routes/bulkUploadRoutes');
 const danoHistoricoRoutes = require('./routes/danoHistoricoRoutes');
+const metrosSuperficieRoutes = require('./routes/metrosSuperficieRoutes');
+const danosAcumuladosRoutes = require('./routes/danosAcumuladosRoutes');
 
 const app = express();
 
@@ -130,6 +132,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/pabellon_maquina', pabellonMaquinaRoutes);
 app.use('/api/bulk-upload', bulkUploadRoutes);
 app.use('/api/danos-historicos', danoHistoricoRoutes);
+app.use('/api/metros-superficie', metrosSuperficieRoutes);
+app.use('/api/danos-acumulados', danosAcumuladosRoutes);
 
 // Middleware de manejo de errores
 app.use(errorHandler);

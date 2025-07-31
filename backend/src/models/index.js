@@ -10,6 +10,8 @@ const MaquinaPlanilla = require('./maquina_planilla');
 const PabellonMaquina = require('./pabellon_maquina');
 const Dano = require('./dano');
 const BarredorCatalogo = require('./barredor_catalogo');
+const MetrosSuperficie = require('./metrosSuperficie');
+const ReporteDanosMensuales = require('./reporteDanosMensuales');
 const sequelize = require('../config/database');
 // ... importa los demás modelos
 
@@ -63,6 +65,16 @@ Dano.belongsTo(Maquina, { foreignKey: 'maquina_id' });
 BarredorCatalogo.hasMany(Barredor, { foreignKey: 'barredor_id' });
 Barredor.belongsTo(BarredorCatalogo, { foreignKey: 'barredor_id' });
 
+// Relaciones para MetrosSuperficie
+Zona.hasMany(MetrosSuperficie, { foreignKey: 'zona_id' });
+MetrosSuperficie.belongsTo(Zona, { foreignKey: 'zona_id' });
+
+Sector.hasMany(MetrosSuperficie, { foreignKey: 'sector_id' });
+MetrosSuperficie.belongsTo(Sector, { foreignKey: 'sector_id' });
+
+Usuario.hasMany(MetrosSuperficie, { as: 'registros_metros_superficie', foreignKey: 'creado_por' });
+MetrosSuperficie.belongsTo(Usuario, { as: 'creador', foreignKey: 'creado_por' });
+
 // sequelize.sync({ alter: true }); // <--- Comentado para evitar conflictos
 
 // ... aquí irán las demás relaciones
@@ -80,5 +92,7 @@ module.exports = {
   PabellonMaquina,
   Dano,
   BarredorCatalogo,
+  MetrosSuperficie,
+  ReporteDanosMensuales,
   // ... exporta los demás modelos
 };

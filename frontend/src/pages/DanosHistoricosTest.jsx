@@ -191,7 +191,7 @@ export default function DanosHistoricosTest() {
 
         {/* Gráficos principales - Row 1 */}
         <Grid container spacing={4} sx={{ mb: 4 }}>
-          <Grid item xs={12} lg={8}>
+          <Grid xs={12} lg={8}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -206,7 +206,7 @@ export default function DanosHistoricosTest() {
             </Card>
           </Grid>
           
-          <Grid item xs={12} lg={4}>
+          <Grid xs={12} lg={4}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -224,7 +224,7 @@ export default function DanosHistoricosTest() {
 
         {/* Gráficos secundarios - Row 2 */}
         <Grid container spacing={4} sx={{ mb: 4 }}>
-          <Grid item xs={12} lg={6}>
+          <Grid xs={12} lg={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -239,7 +239,7 @@ export default function DanosHistoricosTest() {
             </Card>
           </Grid>
           
-          <Grid item xs={12} lg={6}>
+          <Grid xs={12} lg={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -257,7 +257,7 @@ export default function DanosHistoricosTest() {
 
         {/* Top Operadores con Tabla Completa */}
         <Grid container spacing={4} sx={{ mb: 4 }}>
-          <Grid item xs={12}>
+          <Grid xs={12}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>

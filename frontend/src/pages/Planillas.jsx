@@ -28,7 +28,9 @@ export default function Planillas() {
     sector_id: '',
     fecha_inicio: '',
     fecha_termino: '',
-    nro_ticket: ''
+    nro_ticket: '',
+    pabellones_total: '',
+    pabellones_limpiados: ''
   });
   const [filtroSupervisor, setFiltroSupervisor] = useState('');
   const [page, setPage] = useState(0);
@@ -104,7 +106,16 @@ export default function Planillas() {
   // Limpiar campos cuando cambie el supervisor (solo para nueva planilla)
   useEffect(() => {
     if (formData.supervisor && !editingPlanilla) {
-      setFormData(f => ({ ...f, zona_id: '', sector_id: '', fecha_inicio: '', fecha_termino: '', nro_ticket: '' }));
+      setFormData(f => ({ 
+        ...f, 
+        zona_id: '', 
+        sector_id: '', 
+        fecha_inicio: '', 
+        fecha_termino: '', 
+        nro_ticket: '',
+        pabellones_total: '',
+        pabellones_limpiados: ''
+      }));
     }
   }, [formData.supervisor, editingPlanilla]);
 
@@ -112,7 +123,15 @@ export default function Planillas() {
   useEffect(() => {
     if (formData.zona_id && !editingPlanilla) {
       // Solo limpiar si no estamos editando
-      setFormData(f => ({ ...f, sector_id: '', fecha_inicio: '', fecha_termino: '', nro_ticket: '' }));
+      setFormData(f => ({ 
+        ...f, 
+        sector_id: '', 
+        fecha_inicio: '', 
+        fecha_termino: '', 
+        nro_ticket: '',
+        pabellones_total: '',
+        pabellones_limpiados: ''
+      }));
     }
     if (formData.zona_id) {
       fetchSectores(formData.zona_id);
@@ -125,7 +144,15 @@ export default function Planillas() {
       const sector = sectores.find(s => s.id === Number(formData.sector_id));
       if (sector && !editingPlanilla) {
         // Solo actualizar automáticamente si no estamos editando
-        setFormData(f => ({ ...f, fecha_inicio: sector.fecha_inicio, fecha_termino: sector.fecha_termino, nro_ticket: sector.ticket, zona_id: sector.zona_id }));
+        setFormData(f => ({ 
+          ...f, 
+          fecha_inicio: sector.fecha_inicio, 
+          fecha_termino: sector.fecha_termino, 
+          nro_ticket: sector.ticket, 
+          zona_id: sector.zona_id,
+          pabellones_total: sector.cantidad_pabellones || 0,
+          pabellones_limpiados: ''
+        }));
       }
     }
   }, [formData.sector_id, sectores, editingPlanilla]);
@@ -154,6 +181,8 @@ export default function Planillas() {
             fecha_inicio: planilla.fecha_inicio?.slice(0, 10) || '',
             fecha_termino: planilla.fecha_termino?.slice(0, 10) || '',
             nro_ticket: planilla.ticket || '',
+            pabellones_total: planilla.pabellones_total || '',
+            pabellones_limpiados: planilla.pabellones_limpiados || '',
             estado: planilla.estado || 'PENDIENTE',
             observacion: planilla.observacion || ''
           };
@@ -171,7 +200,6 @@ export default function Planillas() {
       loadSectores();
     } else {
       // Limpiar datos dependientes para nueva planilla
-      setZonas([]);
       setSectores([]);
       setFormData({
         supervisor: '',
@@ -180,6 +208,8 @@ export default function Planillas() {
         fecha_inicio: '',
         fecha_termino: '',
         nro_ticket: '',
+        pabellones_total: '',
+        pabellones_limpiados: '',
         estado: 'PENDIENTE',
         observacion: ''
       });
@@ -205,6 +235,8 @@ export default function Planillas() {
         fecha_inicio: formData.fecha_inicio,
         fecha_termino: formData.fecha_termino || null,
         ticket: formData.nro_ticket || null,
+        pabellones_total: parseInt(formData.pabellones_total) || null,
+        pabellones_limpiados: parseInt(formData.pabellones_limpiados) || null,
         estado: formData.estado || 'PENDIENTE',
         observacion: formData.observacion || null
       };
@@ -653,6 +685,46 @@ export default function Planillas() {
                 </Select>
                 <FormHelperText>Seleccione el sector dentro de la zona.</FormHelperText>
               </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Cantidad de Pabellones"
+                type="number"
+                value={formData.pabellones_total}
+                onChange={(e) => setFormData({...formData, pabellones_total: e.target.value})}
+                InputLabelProps={{ shrink: true }}
+                helperText="Cantidad de pabellones del sector seleccionado."
+                disabled={!formData.sector_id}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Pabellones Trabajados"
+                type="number"
+                value={formData.pabellones_limpiados}
+                onChange={(e) => setFormData({...formData, pabellones_limpiados: e.target.value})}
+                InputLabelProps={{ shrink: true }}
+                helperText="Cantidad de pabellones en los que se trabajó."
+                disabled={!formData.pabellones_total}
+                inputProps={{
+                  min: 1,
+                  max: formData.pabellones_total || 999
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Nro. Ticket"
+                value={formData.nro_ticket}
+                onChange={(e) => setFormData({...formData, nro_ticket: e.target.value})}
+                helperText="Número de ticket asociado a la planilla."
+              />
             </Grid>
             
             <Grid item xs={12} md={6}>

@@ -23,6 +23,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import HistoryIcon from '@mui/icons-material/History';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import BugReportIcon from '@mui/icons-material/BugReport';
+import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NAV_ITEMS } from '../config/routes';
@@ -42,7 +43,8 @@ const iconMap = {
   'WarningIcon': <WarningIcon />,
   'HistoryIcon': <HistoryIcon />,
   'AssessmentIcon': <AssessmentIcon />,
-  'BugReportIcon': <BugReportIcon />
+  'BugReportIcon': <BugReportIcon />,
+  'LocalGasStationIcon': <LocalGasStationIcon />
 };
 
 export default function Sidebar() {

@@ -92,12 +92,37 @@ export default function BarChartKPI({ data, title, onBarClick, height = 400 }) {
         color: '#222',
         padding: { top: 10, bottom: 20 }
       },
-      tooltip: {
-        enabled: true,
-        callbacks: {
-          label: (ctx) => ` ${ctx.parsed.y} daños`,
-        },
-        backgroundColor: '#222',
+              tooltip: {
+          enabled: true,
+          callbacks: {
+            label: (ctx) => {
+              // Detectar el tipo de datos basado en el contexto
+              const isKilometros = title && (title.toLowerCase().includes('km') || 
+                                           title.toLowerCase().includes('kilómetros') ||
+                                           title.toLowerCase().includes('recorridos'));
+              
+              const isPetroleo = title && (title.toLowerCase().includes('petróleo') || 
+                                          title.toLowerCase().includes('consumo')) &&
+                                !isKilometros; // Excluir si es kilómetros
+              
+              // Log para debugging
+              console.log('🔍 BarChartKPI Tooltip Debug:', {
+                title: title,
+                isKilometros: isKilometros,
+                isPetroleo: isPetroleo,
+                label: ctx.chart.data.labels[ctx.dataIndex],
+                value: ctx.parsed.y,
+                result: isKilometros ? ` ${ctx.parsed.y.toLocaleString()} km` : 
+                       isPetroleo ? ` ${ctx.parsed.y.toLocaleString()} L` : 
+                       ` ${ctx.parsed.y} daños`
+              });
+              
+              if (isKilometros) return ` ${ctx.parsed.y.toLocaleString()} km`;
+              if (isPetroleo) return ` ${ctx.parsed.y.toLocaleString()} L`;
+              return ` ${ctx.parsed.y} daños`;
+            },
+          },
+          backgroundColor: '#222',
         titleColor: '#00bcd4',
         bodyColor: '#fff',
         borderColor: '#00bcd4',

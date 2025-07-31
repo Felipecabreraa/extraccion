@@ -120,8 +120,8 @@ export default function DashboardCharts({ metrics }) {
   }), []);
 
   return (
-    <Grid container spacing={3}>
-      <Grid item xs={12} lg={8}>
+            <Grid container spacing={3}>
+          <Grid xs={12} lg={8}>
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
@@ -137,7 +137,7 @@ export default function DashboardCharts({ metrics }) {
         </Card>
       </Grid>
 
-      <Grid item xs={12} lg={4}>
+                <Grid xs={12} lg={4}>
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>

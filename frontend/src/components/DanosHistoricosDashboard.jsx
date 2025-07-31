@@ -170,7 +170,7 @@ const DanosHistoricosDashboard = ({ datos, loading, error }) => {
         <Box>
           {/* Resumen Ejecutivo */}
           <Grid container spacing={4} mb={4}>
-            <Grid item xs={12} lg={8}>
+            <Grid xs={12} lg={8}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -189,7 +189,7 @@ const DanosHistoricosDashboard = ({ datos, loading, error }) => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} lg={4}>
+            <Grid xs={12} lg={4}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -212,7 +212,7 @@ const DanosHistoricosDashboard = ({ datos, loading, error }) => {
 
           {/* Resumen de estadísticas */}
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid xs={12} md={6}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -233,7 +233,7 @@ const DanosHistoricosDashboard = ({ datos, loading, error }) => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid xs={12} md={6}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -262,7 +262,7 @@ const DanosHistoricosDashboard = ({ datos, loading, error }) => {
         <Box>
           {/* Análisis por Categorías */}
           <Grid container spacing={4}>
-            <Grid item xs={12} lg={6}>
+            <Grid xs={12} lg={6}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -275,7 +275,7 @@ const DanosHistoricosDashboard = ({ datos, loading, error }) => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} lg={6}>
+            <Grid xs={12} lg={6}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>

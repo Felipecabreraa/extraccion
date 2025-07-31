@@ -147,8 +147,42 @@ const loginSchema = Joi.object({
     .messages({ 'any.required': 'La contraseña es obligatoria' })
 });
 
+// Middleware para validar roles
+const validateRole = (allowedRoles) => {
+  return (req, res, next) => {
+    try {
+      // Verificar que el usuario esté autenticado
+      if (!req.user) {
+        return res.status(401).json({
+          message: 'Token de acceso requerido',
+          code: 'UNAUTHORIZED'
+        });
+      }
+
+      // Verificar que el usuario tenga uno de los roles permitidos
+      if (!allowedRoles.includes(req.user.rol)) {
+        return res.status(403).json({
+          message: 'Acceso denegado. Rol insuficiente',
+          code: 'FORBIDDEN',
+          requiredRoles: allowedRoles,
+          userRole: req.user.rol
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Error en validateRole:', error);
+      return res.status(500).json({
+        message: 'Error interno del servidor',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+  };
+};
+
 module.exports = {
   validate,
+  validateRole,
   schemas: {
     planilla: planillaSchema,
     usuario: usuarioSchema,

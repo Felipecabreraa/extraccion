@@ -5,8 +5,15 @@ export const ROUTES = {
   
   // Rutas privadas
   DASHBOARD: '/dashboard',
+  PETROLEO_ANALISIS: '/petroleo-analisis',
+  METROS_SUPERFICIE: '/metros-superficie',
+
   DANOS: '/danos',
   DANOS_HISTORICOS: '/danos-historicos',
+  DANOS_ACUMULADOS: '/danos-acumulados',
+  DANOS_POR_OPERADOR: '/danos-por-operador',
+  TEST_DANOS_OPERADOR: '/test-danos-operador',
+  DANOS_META: '/danos-meta',
   PLANILLAS: '/planillas',
   USUARIOS: '/usuarios',
   ZONAS: '/zonas',
@@ -29,6 +36,19 @@ export const NAV_ITEMS = [
     roles: ['administrador', 'supervisor', 'operador']
   },
   { 
+    label: 'Análisis Petróleo', 
+    path: ROUTES.PETROLEO_ANALISIS, 
+    icon: 'LocalGasStationIcon',
+    roles: ['administrador', 'supervisor']
+  },
+  { 
+    label: 'Metros Superficie', 
+    path: ROUTES.METROS_SUPERFICIE, 
+    icon: 'AssessmentIcon',
+    roles: ['administrador']
+  },
+
+  { 
     label: 'Daños', 
     path: ROUTES.DANOS, 
     icon: 'WarningIcon',
@@ -38,6 +58,30 @@ export const NAV_ITEMS = [
     label: 'Daños Históricos', 
     path: ROUTES.DANOS_HISTORICOS, 
     icon: 'HistoryIcon',
+    roles: ['administrador', 'supervisor']
+  },
+  { 
+    label: 'Daños Acumulados', 
+    path: ROUTES.DANOS_ACUMULADOS, 
+    icon: 'TrendingUpIcon',
+    roles: ['administrador', 'supervisor']
+  },
+  { 
+    label: 'Daños por Operador', 
+    path: ROUTES.DANOS_POR_OPERADOR, 
+    icon: 'PeopleIcon',
+    roles: ['administrador', 'supervisor']
+  },
+  { 
+    label: 'Test Daños Operador', 
+    path: ROUTES.TEST_DANOS_OPERADOR, 
+    icon: 'BugReportIcon',
+    roles: ['administrador', 'supervisor']
+  },
+  { 
+    label: 'Metas de Daños', 
+    path: ROUTES.DANOS_META, 
+    icon: 'TargetIcon',
     roles: ['administrador', 'supervisor']
   },
   { 

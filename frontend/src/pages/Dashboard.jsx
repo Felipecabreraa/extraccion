@@ -35,7 +35,7 @@ import axios from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-// Componente de gráficos simplificado
+// Componente de gráficos mejorado con datos reales
 const DashboardCharts = ({ metrics }) => {
   if (!metrics || !metrics.charts) {
     return (
@@ -55,32 +55,88 @@ const DashboardCharts = ({ metrics }) => {
   }
 
   return (
-    <Grid container spacing={3}>
-      <Grid item xs={12} lg={8}>
+            <Grid container spacing={3}>
+          <Grid xs={12} lg={8}>
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Tendencias Mensuales
+              📈 Tendencias Mensuales
             </Typography>
-            <Box height={300} display="flex" alignItems="center" justifyContent="center">
-              <Typography color="textSecondary">
-                Gráfico de tendencias - {metrics.charts.tendenciasMensuales?.length || 0} meses de datos
-              </Typography>
+            <Box height={300}>
+              {metrics.charts.tendenciasMensuales && metrics.charts.tendenciasMensuales.length > 0 ? (
+                <Box>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    Últimos {metrics.charts.tendenciasMensuales.length} meses
+                  </Typography>
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    {metrics.charts.tendenciasMensuales.map((item, index) => (
+                      <Box key={index} display="flex" justifyContent="space-between" alignItems="center" p={1} sx={{ bgcolor: 'rgba(102,126,234,0.05)', borderRadius: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {item.mes}
+                        </Typography>
+                        <Box display="flex" gap={2}>
+                          <Chip 
+                            label={`${item.planillas} planillas`} 
+                            size="small" 
+                            color="primary" 
+                            variant="outlined"
+                          />
+                          <Chip 
+                            label={`${item.pabellones} pabellones`} 
+                            size="small" 
+                            color="secondary" 
+                            variant="outlined"
+                          />
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              ) : (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Typography color="textSecondary">
+                    No hay datos de tendencias disponibles
+                  </Typography>
+                </Box>
+              )}
             </Box>
           </CardContent>
         </Card>
       </Grid>
 
-      <Grid item xs={12} lg={4}>
+                <Grid xs={12} lg={4}>
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Estado de Planillas
+              📊 Estado de Planillas
             </Typography>
-            <Box height={300} display="flex" alignItems="center" justifyContent="center">
-              <Typography color="textSecondary">
-                Activas: {metrics.planillasActivas} | Completadas: {metrics.planillasCompletadas}
-              </Typography>
+            <Box height={300}>
+              <Box display="flex" flexDirection="column" gap={2}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" p={2} sx={{ bgcolor: 'rgba(76,175,80,0.1)', borderRadius: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Activas
+                  </Typography>
+                  <Chip label={metrics.planillasActivas || 0} color="success" size="small" />
+                </Box>
+                <Box display="flex" justifyContent="space-between" alignItems="center" p={2} sx={{ bgcolor: 'rgba(33,150,243,0.1)', borderRadius: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Completadas
+                  </Typography>
+                  <Chip label={metrics.planillasCompletadas || 0} color="info" size="small" />
+                </Box>
+                <Box display="flex" justifyContent="space-between" alignItems="center" p={2} sx={{ bgcolor: 'rgba(255,152,0,0.1)', borderRadius: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Pendientes
+                  </Typography>
+                  <Chip label={metrics.planillasPendientes || 0} color="warning" size="small" />
+                </Box>
+                <Box display="flex" justifyContent="space-between" alignItems="center" p={2} sx={{ bgcolor: 'rgba(244,67,54,0.1)', borderRadius: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Canceladas
+                  </Typography>
+                  <Chip label={metrics.planillasCanceladas || 0} color="error" size="small" />
+                </Box>
+              </Box>
             </Box>
           </CardContent>
         </Card>
@@ -90,12 +146,50 @@ const DashboardCharts = ({ metrics }) => {
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Rendimiento por Sector
+              🏭 Rendimiento por Sector
             </Typography>
-            <Box height={300} display="flex" alignItems="center" justifyContent="center">
-              <Typography color="textSecondary">
-                {metrics.charts.rendimientoPorSector?.length || 0} sectores registrados
-              </Typography>
+            <Box height={300}>
+              {metrics.charts.rendimientoPorSector && metrics.charts.rendimientoPorSector.length > 0 ? (
+                <Box>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    Top {metrics.charts.rendimientoPorSector.length} sectores por pabellones procesados
+                  </Typography>
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    {metrics.charts.rendimientoPorSector.map((item, index) => (
+                      <Box key={index} display="flex" justifyContent="space-between" alignItems="center" p={2} sx={{ bgcolor: 'rgba(102,126,234,0.05)', borderRadius: 1 }}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#667eea' }}>
+                            #{index + 1}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {item.nombre}
+                          </Typography>
+                        </Box>
+                        <Box display="flex" gap={1}>
+                          <Chip 
+                            label={`${item.planillas} planillas`} 
+                            size="small" 
+                            color="primary" 
+                            variant="outlined"
+                          />
+                          <Chip 
+                            label={`${item.pabellones} pabellones`} 
+                            size="small" 
+                            color="secondary" 
+                            variant="outlined"
+                          />
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              ) : (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Typography color="textSecondary">
+                    No hay datos de sectores disponibles
+                  </Typography>
+                </Box>
+              )}
             </Box>
           </CardContent>
         </Card>
@@ -113,7 +207,6 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-
   const fetchDashboardData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) {
@@ -122,6 +215,7 @@ export default function Dashboard() {
         setIsRefreshing(true);
       }
       
+      // Cargar datos del año actual sin filtros adicionales
       const response = await axios.get('/dashboard/metrics');
       setMetrics(response.data);
       setLastUpdate(new Date());
@@ -258,6 +352,8 @@ export default function Dashboard() {
         </Tooltip>
       </Box>
 
+
+
       {/* KPIs Principales */}
       <Grid container spacing={3} mb={3}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
@@ -272,7 +368,7 @@ export default function Dashboard() {
                     {metrics?.totalPlanillas || 0}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
-                    Total Planillas
+                    Total Registros
                   </Typography>
                 </Box>
               </Box>
@@ -341,40 +437,8 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      {/* Estado de Planillas */}
+      {/* Métricas del Mes */}
       <Grid container spacing={3} mb={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Estado de Planillas
-              </Typography>
-              <Box display="flex" flexWrap="wrap" gap={1}>
-                <Chip 
-                  icon={getStatusIcon('activa')} 
-                  label={`Activas: ${metrics?.planillasActivas || 0}`} 
-                  color={getStatusColor('activa')} 
-                />
-                <Chip 
-                  icon={getStatusIcon('completada')} 
-                  label={`Completadas: ${metrics?.planillasCompletadas || 0}`} 
-                  color={getStatusColor('completada')} 
-                />
-                <Chip 
-                  icon={getStatusIcon('pendiente')} 
-                  label={`Pendientes: ${metrics?.planillasPendientes || 0}`} 
-                  color={getStatusColor('pendiente')} 
-                />
-                <Chip 
-                  icon={getStatusIcon('cancelada')} 
-                  label={`Canceladas: ${metrics?.planillasCanceladas || 0}`} 
-                  color={getStatusColor('cancelada')} 
-                />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
             <CardContent>
@@ -398,17 +462,17 @@ export default function Dashboard() {
                   </Box>
                 </Box>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                  <Typography variant="body2">Máquinas</Typography>
+                  <Typography variant="body2">Pabellones</Typography>
                   <Box display="flex" alignItems="center">
                     <Typography variant="body2" sx={{ mr: 1 }}>
-                      {metrics?.maquinasMes || 0}
+                      {metrics?.pabellonesMes || 0}
                     </Typography>
                     <Box display="flex" alignItems="center" sx={{ 
-                      color: getVariationColor(metrics?.variacionMaquinas),
+                      color: getVariationColor(metrics?.variacionPabellones),
                       fontSize: '0.75rem'
                     }}>
-                      {getVariationIcon(metrics?.variacionMaquinas)}
-                      {Math.abs(metrics?.variacionMaquinas || 0)}%
+                      {getVariationIcon(metrics?.variacionPabellones)}
+                      {Math.abs(metrics?.variacionPabellones || 0)}%
                     </Box>
                   </Box>
                 </Box>

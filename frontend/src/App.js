@@ -5,8 +5,15 @@ import { ResponsiveProvider } from './context/ResponsiveContext';
 import RouterWrapper from './components/RouterWrapper';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import PetroleoAnalisis from './pages/PetroleoAnalisis';
+import MetrosSuperficie from './pages/MetrosSuperficie';
+
 import Danos from './pages/Danos';
 import DanosHistoricosTest from './pages/DanosHistoricosTest';
+import DanosAcumulados from './pages/DanosAcumulados';
+import DanosPorOperador from './components/DanosPorOperador';
+import TestDanosOperador from './components/TestDanosOperador';
+import DanosMeta from './pages/DanosMeta';
 import Planillas from './pages/Planillas';
 import Zonas from './pages/Zonas';
 import Usuarios from './pages/Usuarios';
@@ -57,8 +64,15 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<PrivateRoute><AppLayout><Dashboard /></AppLayout></PrivateRoute>} />
+      <Route path="/petroleo-analisis" element={<PrivateRoute><AppLayout><PetroleoAnalisis /></AppLayout></PrivateRoute>} />
+      <Route path="/metros-superficie" element={<PrivateRoute><AppLayout><MetrosSuperficie /></AppLayout></PrivateRoute>} />
+
       <Route path="/danos" element={<PrivateRoute><AppLayout><Danos /></AppLayout></PrivateRoute>} />
       <Route path="/danos-historicos" element={<PrivateRoute><AppLayout><DanosHistoricosTest /></AppLayout></PrivateRoute>} />
+      <Route path="/danos-acumulados" element={<PrivateRoute><AppLayout><DanosAcumulados /></AppLayout></PrivateRoute>} />
+      <Route path="/danos-por-operador" element={<PrivateRoute><AppLayout><DanosPorOperador /></AppLayout></PrivateRoute>} />
+      <Route path="/test-danos-operador" element={<PrivateRoute><AppLayout><TestDanosOperador /></AppLayout></PrivateRoute>} />
+      <Route path="/danos-meta" element={<PrivateRoute><AppLayout><DanosMeta /></AppLayout></PrivateRoute>} />
       <Route path="/planillas" element={<PrivateRoute><AppLayout><Planillas /></AppLayout></PrivateRoute>} />
       <Route path="/usuarios" element={<PrivateRoute><AppLayout><Usuarios /></AppLayout></PrivateRoute>} />
       <Route path="/zonas" element={<PrivateRoute><AppLayout><Zonas /></AppLayout></PrivateRoute>} />
