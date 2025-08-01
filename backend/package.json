@@ -9,7 +9,7 @@
     "test:ci": "jest --ci --coverage --watchAll=false",
     "dev": "nodemon src/app.js",
     "start": "node src/app.js",
-    "build": "echo 'No build step needed for Node.js backend'",
+    "build": "exit 0",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix"
   },

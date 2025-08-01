@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 import { 
   Card, 
   CardContent, 
@@ -108,15 +108,19 @@ const DanosAcumulados = () => {
       setLoading(true);
       setError(null);
       
-      const response = await axios.get(`/api/danos-acumulados?anio=${anioSeleccionado}`);
+      console.log('🔍 Cargando datos para año:', anioSeleccionado);
+      
+      const response = await api.get(`/danos-acumulados?anio=${anioSeleccionado}`);
+      console.log('✅ Datos recibidos:', response.data);
       setDatos(response.data);
       
       // Cargar resumen ejecutivo
-      const resumenResponse = await axios.get(`/api/danos-acumulados/resumen-ejecutivo?anio=${anioSeleccionado}`);
+      const resumenResponse = await api.get(`/danos-acumulados/resumen-ejecutivo?anio=${anioSeleccionado}`);
+      console.log('✅ Resumen recibido:', resumenResponse.data);
       setResumen(resumenResponse.data);
       
     } catch (err) {
-      console.error('Error cargando datos:', err);
+      console.error('❌ Error cargando datos:', err);
       setError('Error al cargar los datos de daños acumulados');
     } finally {
       setLoading(false);
@@ -126,7 +130,7 @@ const DanosAcumulados = () => {
   // Crear/actualizar registro
   const crearRegistro = async () => {
     try {
-      const response = await axios.post('/api/danos-acumulados/registro', nuevoRegistro);
+      const response = await api.post('/danos-acumulados/registro', nuevoRegistro);
       
       if (response.data.success) {
         setShowRegistroDialog(false);
@@ -163,7 +167,7 @@ const DanosAcumulados = () => {
   // Guardar registro editado
   const guardarRegistroEditado = async () => {
     try {
-      const response = await axios.post('/api/danos-acumulados/registro', editingRegistro);
+      const response = await api.post('/danos-acumulados/registro', editingRegistro);
       
       if (response.data.success) {
         setShowRegistroDialog(false);
@@ -188,7 +192,7 @@ const DanosAcumulados = () => {
     }
 
     try {
-      const response = await axios.delete('/api/danos-acumulados/registro', {
+      const response = await api.delete('/danos-acumulados/registro', {
         data: {
           anio: anioSeleccionado,
           mes: mes.mes
@@ -211,7 +215,7 @@ const DanosAcumulados = () => {
   // Calcular variación anual
   const calcularVariacion = async () => {
     try {
-      const response = await axios.post('/api/danos-acumulados/calcular-variacion', {
+      const response = await api.post('/danos-acumulados/calcular-variacion', {
         anio_actual: anioSeleccionado,
         anio_anterior: anioSeleccionado - 1
       });
@@ -226,7 +230,7 @@ const DanosAcumulados = () => {
   // Cargar datos del año anterior
   const cargarAnioAnterior = async () => {
     try {
-      const response = await axios.post('/api/danos-acumulados/cargar-anio-anterior', {
+      const response = await api.post('/danos-acumulados/cargar-anio-anterior', {
         anio_origen: anioSeleccionado - 1,
         anio_destino: anioSeleccionado
       });
@@ -270,12 +274,17 @@ const DanosAcumulados = () => {
 
   // Preparar datos para gráficos
   const datosGrafico = datos?.datos_grafico || [];
+  console.log('📊 Datos gráfico preparados:', datosGrafico);
+  
   const datosLinea = datosGrafico.map(mes => ({
     mes: mes.nombreMes,
     real: mes.real_acumulado,
     ppto: mes.ppto_acumulado,
     anioAnterior: mes.anio_ant_acumulado
   }));
+  
+  console.log('📈 Datos línea preparados:', datosLinea);
+  console.log('💰 KPIs actuales:', datos?.kpis);
 
   return (
     <Box sx={{ p: 3 }}>

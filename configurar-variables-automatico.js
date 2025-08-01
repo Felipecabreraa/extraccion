@@ -15,7 +15,7 @@ const envVars = {
   'DB_PORT': '3306',
   'NODE_ENV': 'production',
   'JWT_SECRET': 'tu-jwt-secret-super-seguro-para-produccion',
-  'CORS_ORIGIN': 'https://extraccion-ifr1jglgp-felipe-lagos-projects-f57024eb.vercel.app',
+  'CORS_ORIGIN': 'https://extraccion-kpg4u27li-felipe-lagos-projects-f57024eb.vercel.app',
   'LOG_LEVEL': 'info'
 };
 
@@ -48,8 +48,8 @@ async function configurarVariables() {
     console.log('   4. Guarda los cambios');
     console.log('   5. Haz un nuevo despliegue: npx vercel --prod');
     
-    console.log('\n✅ URL de producción:');
-    console.log('   https://extraccion-ifr1jglgp-felipe-lagos-projects-f57024eb.vercel.app');
+         console.log('\n✅ URL de producción:');
+     console.log('   https://extraccion-kpg4u27li-felipe-lagos-projects-f57024eb.vercel.app');
     
   } catch (error) {
     console.error('❌ Error:', error.message);

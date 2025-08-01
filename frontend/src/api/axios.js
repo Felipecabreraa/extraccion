@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Configuración de axios para desarrollo y producción
 const baseURL = process.env.NODE_ENV === 'production' 
-  ? 'https://extraccion-bm4kowa1t-felipe-lagos-projects-f57024eb.vercel.app/api'  // URL de Vercel
+  ? 'https://frontend-tau-liard-43.vercel.app/api'  // URL de Vercel
   : 'http://localhost:3001/api';                 // URL local
 
 const api = axios.create({
