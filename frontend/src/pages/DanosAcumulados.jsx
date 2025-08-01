@@ -561,42 +561,46 @@ const DanosAcumulados = () => {
                   <Typography variant="h6" component="h2" gutterBottom>
                     Resumen Ejecutivo
                   </Typography>
-                  {resumen && (
+                  {resumen && resumen.resumen && (
                     <>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="subtitle2">Total Real Actual:</Typography>
                         <Typography variant="subtitle2" color="error.main" fontWeight="bold">
-                          {resumen.resumen.total_real_actual_formateado}
+                          {resumen.resumen?.total_real_actual_formateado || 'N/A'}
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="subtitle2">Total Presupuesto:</Typography>
                         <Typography variant="subtitle2" color="info.main" fontWeight="bold">
-                          {resumen.resumen.total_ppto_actual_formateado}
+                          {resumen.resumen?.total_ppto_actual_formateado || 'N/A'}
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="subtitle2">Total Año Anterior:</Typography>
                         <Typography variant="subtitle2" color="warning.main" fontWeight="bold">
-                          {resumen.resumen.total_real_anterior_formateado}
+                          {resumen.resumen?.total_real_anterior_formateado || 'N/A'}
                         </Typography>
                       </Box>
                       
-                      <Box sx={{ borderTop: 1, borderColor: 'divider', mt: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="subtitle2">Variación Anual:</Typography>
-                          <Chip label={`${resumen.variacion.porcentual}%`} variant={resumen.variacion.tipo === 'incremento' ? 'filled' : 'outlined'} />
+                      {resumen.variacion && (
+                        <Box sx={{ borderTop: 1, borderColor: 'divider', mt: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="subtitle2">Variación Anual:</Typography>
+                            <Chip label={`${resumen.variacion?.porcentual || 0}%`} variant={resumen.variacion?.tipo === 'incremento' ? 'filled' : 'outlined'} />
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">{resumen.variacion?.interpretacion || 'No disponible'}</Typography>
                         </Box>
-                        <Typography variant="body2" color="text.secondary">{resumen.variacion.interpretacion}</Typography>
-                      </Box>
+                      )}
 
-                      <Box sx={{ borderTop: 1, borderColor: 'divider', mt: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="subtitle2">Cumplimiento Presupuestario:</Typography>
-                          <Chip label={`${resumen.cumplimiento_presupuestario.porcentual}%`} variant={resumen.cumplimiento_presupuestario.tipo === 'sobre_presupuesto' ? 'filled' : 'outlined'} />
+                      {resumen.cumplimiento_presupuestario && (
+                        <Box sx={{ borderTop: 1, borderColor: 'divider', mt: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="subtitle2">Cumplimiento Presupuestario:</Typography>
+                            <Chip label={`${resumen.cumplimiento_presupuestario?.porcentual || 0}%`} variant={resumen.cumplimiento_presupuestario?.tipo === 'sobre_presupuesto' ? 'filled' : 'outlined'} />
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">{resumen.cumplimiento_presupuestario?.interpretacion || 'No disponible'}</Typography>
                         </Box>
-                        <Typography variant="body2" color="text.secondary">{resumen.cumplimiento_presupuestario.interpretacion}</Typography>
-                      </Box>
+                      )}
 
                       {resumen.mes_mayor_dano && (
                         <Box sx={{ borderTop: 1, borderColor: 'divider', mt: 2 }}>

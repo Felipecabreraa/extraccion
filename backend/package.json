@@ -45,6 +45,9 @@
     "supertest": "^6.3.3"
   },
   "description": "",
+  "engines": {
+    "node": "22.x"
+  },
   "jest": {
     "testEnvironment": "node",
     "collectCoverageFrom": [

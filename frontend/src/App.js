@@ -12,7 +12,6 @@ import Danos from './pages/Danos';
 import DanosHistoricosTest from './pages/DanosHistoricosTest';
 import DanosAcumulados from './pages/DanosAcumulados';
 import DanosPorOperador from './components/DanosPorOperador';
-import TestDanosOperador from './components/TestDanosOperador';
 import DanosMeta from './pages/DanosMeta';
 import Planillas from './pages/Planillas';
 import Zonas from './pages/Zonas';
@@ -71,7 +70,6 @@ function AppRoutes() {
       <Route path="/danos-historicos" element={<PrivateRoute><AppLayout><DanosHistoricosTest /></AppLayout></PrivateRoute>} />
       <Route path="/danos-acumulados" element={<PrivateRoute><AppLayout><DanosAcumulados /></AppLayout></PrivateRoute>} />
       <Route path="/danos-por-operador" element={<PrivateRoute><AppLayout><DanosPorOperador /></AppLayout></PrivateRoute>} />
-      <Route path="/test-danos-operador" element={<PrivateRoute><AppLayout><TestDanosOperador /></AppLayout></PrivateRoute>} />
       <Route path="/danos-meta" element={<PrivateRoute><AppLayout><DanosMeta /></AppLayout></PrivateRoute>} />
       <Route path="/planillas" element={<PrivateRoute><AppLayout><Planillas /></AppLayout></PrivateRoute>} />
       <Route path="/usuarios" element={<PrivateRoute><AppLayout><Usuarios /></AppLayout></PrivateRoute>} />

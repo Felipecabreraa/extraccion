@@ -1,8 +1,8 @@
 const axios = require('axios');
 const BASE_URL = 'http://localhost:3001';
 
-// Datos de 2024 extraídos de la tabla del usuario (VALORES CORRECTOS)
-const datos2024 = [
+// Datos CORRECTOS de 2024 según la tabla del usuario
+const datosCorrectos2024 = [
   { mes: 1, valor_real: 5423159, valor_ppto: 3000000 }, // ene-24: $5.423.159
   { mes: 2, valor_real: 1915828, valor_ppto: 3000000 }, // feb-24: $1.915.828
   { mes: 3, valor_real: 4701026, valor_ppto: 3000000 }, // mar-24: $4.701.026
@@ -17,14 +17,14 @@ const datos2024 = [
   { mes: 12, valor_real: 4163992, valor_ppto: 3000000 }  // dic-24: $4.163.992
 ];
 
-async function cargarDatos2024() {
+async function actualizarDatosCorrectos2024() {
   try {
-    console.log('📊 Cargando datos de 2024 desde la tabla del usuario...\n');
+    console.log('🔄 Actualizando datos de 2024 con valores CORRECTOS...\n');
 
-    let registrosCargados = 0;
     let registrosActualizados = 0;
+    let totalReal = 0;
 
-    for (const dato of datos2024) {
+    for (const dato of datosCorrectos2024) {
       try {
         const response = await axios.post(`${BASE_URL}/api/danos-acumulados/registro`, {
           anio: 2024,
@@ -34,26 +34,22 @@ async function cargarDatos2024() {
         });
 
         if (response.data.success) {
-          if (response.data.data.creado) {
-            registrosCargados++;
-            console.log(`✅ Mes ${dato.mes}: Creado - Real: $${dato.valor_real.toLocaleString()}, Ppto: $${dato.valor_ppto.toLocaleString()}`);
-          } else {
-            registrosActualizados++;
-            console.log(`🔄 Mes ${dato.mes}: Actualizado - Real: $${dato.valor_real.toLocaleString()}, Ppto: $${dato.valor_ppto.toLocaleString()}`);
-          }
+          registrosActualizados++;
+          totalReal += dato.valor_real;
+          console.log(`✅ Mes ${dato.mes}: Actualizado - Real: $${dato.valor_real.toLocaleString()}`);
         }
       } catch (error) {
         console.log(`❌ Error en mes ${dato.mes}:`, error.response?.data?.message || error.message);
       }
     }
 
-    console.log('\n📈 Resumen de carga:');
-    console.log(`✅ Registros creados: ${registrosCargados}`);
-    console.log(`🔄 Registros actualizados: ${registrosActualizados}`);
-    console.log(`📊 Total procesados: ${registrosCargados + registrosActualizados}`);
+    console.log('\n📈 Resumen de actualización:');
+    console.log(`✅ Registros actualizados: ${registrosActualizados}`);
+    console.log(`💰 Total Real 2024: $${totalReal.toLocaleString()}`);
+    console.log(`💰 Total esperado según tabla: $38,121,669`);
 
-    // Verificar datos cargados
-    console.log('\n🔍 Verificando datos cargados...');
+    // Verificar datos actualizados
+    console.log('\n🔍 Verificando datos actualizados...');
     const responseVerificacion = await axios.get(`${BASE_URL}/api/danos-acumulados?anio=2024`);
     
     if (responseVerificacion.data.success) {
@@ -61,18 +57,23 @@ async function cargarDatos2024() {
       console.log(`✅ Datos verificados: ${datosCargados.length} meses con datos`);
       
       // Mostrar totales
-      const totalReal = datosCargados.reduce((sum, mes) => sum + (mes.real_acumulado - (datosCargados[datosCargados.indexOf(mes) - 1]?.real_acumulado || 0)), 0);
-      const totalPpto = datosCargados.reduce((sum, mes) => sum + (mes.ppto_acumulado - (datosCargados[datosCargados.indexOf(mes) - 1]?.ppto_acumulado || 0)), 0);
+      const totalRealVerificado = datosCargados.reduce((sum, mes) => sum + (mes.real_acumulado - (datosCargados[datosCargados.indexOf(mes) - 1]?.real_acumulado || 0)), 0);
       
-      console.log(`💰 Total Real 2024: $${totalReal.toLocaleString()}`);
-      console.log(`💰 Total Presupuesto 2024: $${totalPpto.toLocaleString()}`);
+      console.log(`💰 Total Real 2024 (verificado): $${totalRealVerificado.toLocaleString()}`);
+      console.log(`💰 Total esperado: $38,121,669`);
+      
+      if (totalRealVerificado === 38121669) {
+        console.log('✅ ¡Datos actualizados correctamente!');
+      } else {
+        console.log('❌ Los datos no coinciden con lo esperado');
+      }
     }
 
-    console.log('\n✅ Carga de datos 2024 completada exitosamente');
+    console.log('\n✅ Actualización de datos 2024 completada');
 
   } catch (error) {
     console.error('❌ Error general:', error.message);
   }
 }
 
-cargarDatos2024(); 
+actualizarDatosCorrectos2024(); 

@@ -1,52 +1,25 @@
 import axios from 'axios';
 
-const instance = axios.create({ 
-  baseURL: process.env.REACT_APP_API_URL || 'https://backend-production-6fb4.up.railway.app/api',
-  timeout: 30000 // 30 segundos de timeout (aumentado de 10)
+// Configuración de axios para desarrollo y producción
+const baseURL = process.env.NODE_ENV === 'production' 
+  ? 'https://extraccion-bm4kowa1t-felipe-lagos-projects-f57024eb.vercel.app/api'  // URL de Vercel
+  : 'http://localhost:3001/api';                 // URL local
+
+const api = axios.create({
+  baseURL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Interceptor de requests
-instance.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-}, error => {
-  return Promise.reject(error);
-});
-
-// Interceptor de responses
-instance.interceptors.response.use(response => {
-  return response;
-}, error => {
-  // Manejar errores de cancelación
-  if (error.code === 'ERR_CANCELED' || error.name === 'CanceledError') {
-    console.log('🔄 Request cancelado intencionalmente');
+// Interceptor para manejar errores
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('Error en API:', error);
     return Promise.reject(error);
   }
-  
-  // Manejar errores de timeout
-  if (error.code === 'ECONNABORTED') {
-    console.error('⏰ Timeout en la petición:', error.message);
-    return Promise.reject(new Error('La petición tardó demasiado tiempo'));
-  }
-  
-  // Manejar errores de red
-  if (!error.response) {
-    console.error('🌐 Error de red:', error.message);
-    return Promise.reject(new Error('Error de conexión. Verifica tu conexión a internet.'));
-  }
-  
-  if (error.response?.status === 401) {
-    // Token expirado o inválido
-    localStorage.removeItem('token');
-    window.location.href = '/login';
-  }
-  
-  if (error.response?.status === 500) {
-    console.error('Error del servidor:', error.response.data);
-  }
-  
-  return Promise.reject(error);
-});
+);
 
-export default instance; 
+export default api; 

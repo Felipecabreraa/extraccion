@@ -2,24 +2,32 @@
   "version": 2,
   "builds": [
     {
+      "src": "backend/src/app.js",
+      "use": "@vercel/node",
+      "config": {
+        "nodeVersion": "22.x"
+      }
+    },
+    {
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build"
+        "distDir": "build",
+        "nodeVersion": "22.x"
       }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://tu-backend-railway.railway.app/api/$1"
+      "dest": "backend/src/app.js"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "frontend/$1"
     }
   ],
   "env": {
-    "REACT_APP_API_URL": "https://tu-backend-railway.railway.app/api"
+    "NODE_ENV": "production"
   }
 } 

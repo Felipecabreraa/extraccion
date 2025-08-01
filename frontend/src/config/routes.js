@@ -12,7 +12,6 @@ export const ROUTES = {
   DANOS_HISTORICOS: '/danos-historicos',
   DANOS_ACUMULADOS: '/danos-acumulados',
   DANOS_POR_OPERADOR: '/danos-por-operador',
-  TEST_DANOS_OPERADOR: '/test-danos-operador',
   DANOS_META: '/danos-meta',
   PLANILLAS: '/planillas',
   USUARIOS: '/usuarios',
@@ -70,12 +69,6 @@ export const NAV_ITEMS = [
     label: 'Daños por Operador', 
     path: ROUTES.DANOS_POR_OPERADOR, 
     icon: 'PeopleIcon',
-    roles: ['administrador', 'supervisor']
-  },
-  { 
-    label: 'Test Daños Operador', 
-    path: ROUTES.TEST_DANOS_OPERADOR, 
-    icon: 'BugReportIcon',
     roles: ['administrador', 'supervisor']
   },
   { 
