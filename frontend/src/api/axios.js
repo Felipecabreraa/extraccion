@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const instance = axios.create({ 
-  baseURL: 'http://localhost:3001/api',
+  baseURL: process.env.REACT_APP_API_URL || 'https://backend-production-6fb4.up.railway.app/api',
   timeout: 30000 // 30 segundos de timeout (aumentado de 10)
 });
 
