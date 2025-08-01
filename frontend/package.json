@@ -2,7 +2,7 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://tu-usuario.github.io/tu-repo",
+  "homepage": "https://frontend-production-f878.up.railway.app",
   "dependencies": {
     "@date-io/date-fns": "^3.2.1",
     "@emotion/react": "^11.14.0",
@@ -25,16 +25,19 @@
     "react-router-dom": "^6.30.1",
     "react-scripts": "5.0.1",
     "recharts": "^3.1.0",
+    "serve": "^14.2.1",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "npm run build && serve -s build -l 3000",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "dev": "react-scripts start"
+  },
+  "engines": {
+    "node": "18.x"
   },
   "eslintConfig": {
     "extends": [
@@ -42,7 +45,6 @@
       "react-app/jest"
     ]
   },
-  "proxy": "https://tu-backend.onrender.com",
   "browserslist": {
     "production": [
       ">0.2%",
