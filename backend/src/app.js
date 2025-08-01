@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const sequelize = require('./config/database');
 const { errorHandler } = require('./middlewares/errorMiddleware');
 const logger = require('./utils/logger');
@@ -77,6 +78,11 @@ app.use('/api', limiter);
 // Parsers de body
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Servir archivos estáticos del frontend en producción
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../public')));
+}
 
 // Rutas de salud y estado
 app.get('/', (req, res) => {

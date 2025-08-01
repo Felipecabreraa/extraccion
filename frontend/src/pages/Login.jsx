@@ -22,6 +22,7 @@ import { useResponsive } from '../context/ResponsiveContext';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo-rionegro.png';
 
+
 export default function Login() {
   const [credentials, setCredentials] = useState({
     email: '',
