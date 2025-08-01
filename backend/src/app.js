@@ -34,19 +34,13 @@ const app = express();
 // Middleware de logging
 app.use(logger.request);
 
-// CORS CORRECTO
+// CORS CORRECTO - Configuración temporal permisiva
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? [
-        'https://felipecabreraa.github.io',
-        'https://frontend-production-f878.up.railway.app',
-        'https://extraccion-app-production.up.railway.app',
-        process.env.CORS_ORIGIN
-      ].filter(Boolean)
-    : ['http://localhost:3000', 'http://localhost:3002'],
+  origin: true, // Permitir todos los orígenes temporalmente
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
+  optionsSuccessStatus: 200
 }));
 
 // Configuración de seguridad
