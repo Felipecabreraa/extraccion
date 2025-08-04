@@ -122,7 +122,7 @@ function verifyEnvironments() {
     const backendEnv = fs.readFileSync('backend/.env', 'utf8');
     const isDevelopment = backendEnv.includes('NODE_ENV=development');
     const hasPort = backendEnv.includes('PORT=3001');
-    const hasDatabase = backendEnv.includes('DB_NAME=trn_extraccion_dev');
+    const hasDatabase = backendEnv.includes('DB_NAME=trn_extraccion');
     
     console.log(`✅ Backend .env: ${isDevelopment ? 'Desarrollo ✓' : 'Otro ambiente ✗'}`);
     console.log(`✅ Backend .env: ${hasPort ? 'Puerto 3001 ✓' : 'Puerto diferente ✗'}`);
