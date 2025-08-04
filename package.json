@@ -18,7 +18,11 @@
     "test:quick": "node test-sistema-completo.js --quick",
     "env:dev": "node scripts/switch-to-development.js",
     "env:test": "node scripts/switch-to-test.js",
-    "env:prod": "node scripts/switch-to-production.js"
+    "env:prod": "node scripts/switch-to-production.js",
+    "git:env": "node scripts/git-switch-environments.js",
+    "git:prod": "node scripts/git-switch-environments.js production",
+    "git:dev": "node scripts/git-switch-environments.js develop",
+    "git:test": "node scripts/git-switch-environments.js test"
   },
   "keywords": [],
   "author": "",

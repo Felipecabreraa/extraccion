@@ -20,7 +20,8 @@
     "env:dev": "node ../scripts/switch-to-development.js",
     "env:prod": "node ../scripts/switch-to-production.js",
     "setup:test-public": "node ../scripts/setup-test-environment.js",
-    "fix:404": "node ../scripts/fix-404-deployment.js"
+    "fix:404": "node ../scripts/fix-404-deployment.js",
+    "fix:railway": "node ../scripts/fix-railway-test.js"
   },
   "keywords": [],
   "author": "",
