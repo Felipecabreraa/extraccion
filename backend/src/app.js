@@ -34,9 +34,9 @@ const app = express();
 // Middleware de logging
 app.use(logger.request);
 
-// Configuración de CORS - SOLUCIÓN FORZADA
+// Configuración de CORS - SOLUCIÓN DEFINITIVA
 app.use(cors({
-  origin: ['https://extracciontrn.vercel.app', 'http://localhost:3000', 'http://localhost:3002'],
+  origin: true, // Permite todos los orígenes temporalmente
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept']
