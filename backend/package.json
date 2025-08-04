@@ -15,7 +15,12 @@
     "test:server": "NODE_ENV=test node src/app.js",
     "setup:dev": "node ../scripts/switch-to-development.js",
     "setup:test": "node ../scripts/switch-to-test.js",
-    "setup:prod": "node ../scripts/switch-to-production.js"
+    "setup:prod": "node ../scripts/switch-to-production.js",
+    "env:test": "node ../scripts/switch-to-test.js",
+    "env:dev": "node ../scripts/switch-to-development.js",
+    "env:prod": "node ../scripts/switch-to-production.js",
+    "setup:test-public": "node ../scripts/setup-test-environment.js",
+    "fix:404": "node ../scripts/fix-404-deployment.js"
   },
   "keywords": [],
   "author": "",
