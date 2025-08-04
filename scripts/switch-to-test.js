@@ -1,48 +1,36 @@
 #!/usr/bin/env node
 
-const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-console.log('🟡 Cambiando a ambiente de PRUEBAS...');
+console.log('🔄 Cambiando a ambiente de PRUEBAS...');
 
-function copyFile(source, destination) {
-  try {
-    fs.copyFileSync(source, destination);
-    console.log(`✅ Copiado: ${source} → ${destination}`);
-  } catch (error) {
-    console.error(`❌ Error copiando ${source}: ${error.message}`);
-  }
+// Configurar backend
+const backendEnvPath = path.join(__dirname, '../backend/.env');
+const backendTestEnvPath = path.join(__dirname, '../backend/env.test');
+
+if (fs.existsSync(backendTestEnvPath)) {
+  fs.copyFileSync(backendTestEnvPath, backendEnvPath);
+  console.log('✅ Backend configurado para PRUEBAS');
+} else {
+  console.log('❌ No se encontró env.test en backend');
 }
 
-async function switchToTest() {
-  try {
-    console.log('\n📋 Configurando archivos de entorno para pruebas...');
-    
-    copyFile(
-      path.join(__dirname, '../backend/env.test'),
-      path.join(__dirname, '../backend/.env')
-    );
-    
-    copyFile(
-      path.join(__dirname, '../frontend/env.test'),
-      path.join(__dirname, '../frontend/.env')
-    );
-    
-    console.log('\n✅ ¡Ambiente de pruebas configurado!');
-    console.log('\n🌐 URLs de Pruebas:');
-    console.log('   - Backend: http://localhost:3002');
-    console.log('   - Frontend: http://localhost:3000');
-    console.log('   - Base de datos: trn_extraccion_test');
-    
-    console.log('\n🚀 Comandos para iniciar:');
-    console.log('   - Backend: cd backend && npm run test:server');
-    console.log('   - Frontend: cd frontend && npm start');
-    
-  } catch (error) {
-    console.error('\n❌ Error configurando ambiente de pruebas:', error.message);
-    process.exit(1);
-  }
+// Configurar frontend
+const frontendEnvPath = path.join(__dirname, '../frontend/.env');
+const frontendTestEnvPath = path.join(__dirname, '../frontend/env.test');
+
+if (fs.existsSync(frontendTestEnvPath)) {
+  fs.copyFileSync(frontendTestEnvPath, frontendEnvPath);
+  console.log('✅ Frontend configurado para PRUEBAS');
+} else {
+  console.log('❌ No se encontró env.test en frontend');
 }
 
-switchToTest();
+console.log('🎯 Ambiente de PRUEBAS configurado:');
+console.log('   📊 Backend: Puerto 3002, DB: trn_extraccion_test');
+console.log('   🌐 Frontend: Puerto 3000, API: http://localhost:3002/api');
+console.log('');
+console.log('🚀 Para iniciar:');
+console.log('   Backend: cd backend && npm run test:server');
+console.log('   Frontend: cd frontend && npm start');

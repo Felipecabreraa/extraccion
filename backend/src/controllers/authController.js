@@ -1,7 +1,26 @@
 const { Usuario } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getTestCredentials, isTestEnvironment } = require('../utils/testUser');
+
+// Funciones temporales para evitar dependencia de testUser.js
+const getTestCredentials = () => {
+  return {
+    user: {
+      id: 999,
+      username: 'test_user',
+      email: 'test@extraccion.com',
+      nombre: 'Usuario de Prueba',
+      rol: 'admin',
+      activo: true
+    },
+    token: 'test_token_extraccion_2025',
+    environment: 'test'
+  };
+};
+
+const isTestEnvironment = () => {
+  return process.env.NODE_ENV === 'test' || process.env.ENVIRONMENT === 'test';
+};
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro';
 

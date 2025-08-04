@@ -15,7 +15,10 @@
     "test:backend": "node test-sistema-completo.js",
     "test:frontend": "node test-frontend-completo.js",
     "test:setup": "node setup-test-environment.js",
-    "test:quick": "node test-sistema-completo.js --quick"
+    "test:quick": "node test-sistema-completo.js --quick",
+    "env:dev": "node scripts/switch-to-development.js",
+    "env:test": "node scripts/switch-to-test.js",
+    "env:prod": "node scripts/switch-to-production.js"
   },
   "keywords": [],
   "author": "",

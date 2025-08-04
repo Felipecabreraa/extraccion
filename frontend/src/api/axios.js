@@ -1,9 +1,9 @@
 import axios from 'axios';
 
 // Configuración de axios para desarrollo y producción
-const baseURL = process.env.NODE_ENV === 'production' 
-  ? 'https://backend-production-6fb4.up.railway.app/api'  // URL de Railway
-  : 'http://localhost:3001/api';                 // URL local corregida
+const baseURL = process.env.NODE_ENV === 'production'
+  ? process.env.REACT_APP_API_URL || 'https://trn-extraccion-production.up.railway.app/api'  // URL de Railway
+  : process.env.REACT_APP_API_URL || 'http://localhost:3001/api';  // URL desde variable de entorno
 
 const api = axios.create({
   baseURL,

@@ -4,85 +4,113 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-console.log('🚀 Desplegando ambiente de PRODUCCIÓN...');
+console.log('🚀 INICIANDO DESPLIEGUE A PRODUCCIÓN');
+console.log('=====================================\n');
 
-// Función para copiar archivo de configuración
-function copyEnvFile(source, destination) {
+function runCommand(command, description) {
   try {
-    fs.copyFileSync(source, destination);
-    console.log(`✅ Copiado: ${source} → ${destination}`);
+    console.log(`📋 ${description}...`);
+    const result = execSync(command, { stdio: 'inherit' });
+    console.log(`✅ ${description} completado`);
+    return result;
   } catch (error) {
-    console.error(`❌ Error copiando ${source}:`, error.message);
+    console.error(`❌ Error en: ${description}`);
+    console.error(error.message);
+    throw error;
   }
 }
 
-// Función para ejecutar comando
-function runCommand(command, cwd = process.cwd()) {
+async function deployToProduction() {
   try {
-    console.log(`📦 Ejecutando: ${command}`);
-    execSync(command, { 
-      cwd, 
-      stdio: 'inherit',
-      shell: true 
-    });
-    console.log(`✅ Comando exitoso: ${command}`);
-  } catch (error) {
-    console.error(`❌ Error ejecutando: ${command}`);
-    process.exit(1);
-  }
-}
-
-async function deployProduction() {
-  try {
-    console.log('\n📋 PASO 1: Verificando que estás en la rama main...');
+    console.log('📋 PASO 1: Configurando ambiente de producción...');
     
-    // Verificar que estás en la rama main
-    const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
-    if (currentBranch !== 'main') {
-      console.error('❌ Error: Debes estar en la rama main para desplegar a producción');
-      console.log(`   Rama actual: ${currentBranch}`);
-      console.log('   Ejecuta: git checkout main');
-      process.exit(1);
-    }
+    // Cambiar a configuración de producción
+    runCommand('node scripts/switch-to-production.js', 'Cambiando a configuración de producción');
     
-    console.log('✅ Rama correcta: main');
+    console.log('\n📋 PASO 2: Verificando configuración de producción...');
+    runCommand('node scripts/verify-environments.js', 'Verificando configuración');
     
-    console.log('\n📋 PASO 2: Configurando backend para producción...');
+    console.log('\n📋 PASO 3: Instalando dependencias del backend...');
+    runCommand('cd backend && npm install --production', 'Instalando dependencias backend');
     
-    // Copiar configuración de producción al backend
-    copyEnvFile(
-      path.join(__dirname, '../backend/env.railway.production'),
-      path.join(__dirname, '../backend/.env')
-    );
+    console.log('\n📋 PASO 4: Instalando dependencias del frontend...');
+    runCommand('cd frontend && npm install', 'Instalando dependencias frontend');
     
-    console.log('\n📋 PASO 3: Desplegando backend a Railway (producción)...');
-    process.chdir(path.join(__dirname, '../backend'));
+    console.log('\n📋 PASO 5: Construyendo frontend para producción...');
+    runCommand('cd frontend && npm run build', 'Construyendo frontend');
     
-    // Verificar si Railway CLI está disponible
+    console.log('\n📋 PASO 6: Desplegando frontend a Vercel...');
+    
+    // Verificar si Vercel CLI está instalado
     try {
-      execSync('npx @railway/cli --version', { stdio: 'pipe' });
+      execSync('npx vercel --version', { stdio: 'pipe' });
+      console.log('✅ Vercel CLI detectado');
     } catch {
-      console.log('📦 Instalando Railway CLI...');
-      runCommand('npm install -g @railway/cli');
+      console.log('📦 Instalando Vercel CLI...');
+      runCommand('npm install -g vercel', 'Instalando Vercel CLI');
     }
     
-    // Desplegar a Railway (producción)
-    runCommand('npx @railway/cli up --service production');
+    // Desplegar a Vercel
+    console.log('🚀 Desplegando frontend a Vercel...');
+    console.log('⚠️  IMPORTANTE: Se abrirá el navegador para autenticación');
+    console.log('   - Inicia sesión con tu cuenta de Vercel');
+    console.log('   - Confirma el despliegue');
     
-    console.log('\n📋 PASO 4: Configurando frontend para producción...');
-    process.chdir(path.join(__dirname, '../frontend'));
+    runCommand('cd frontend && npx vercel --prod', 'Desplegando frontend a Vercel');
     
-    // El frontend ya está configurado para producción por defecto
+    console.log('\n📋 PASO 7: Configurando backend para hosting...');
     
-    console.log('\n✅ ¡Despliegue de PRODUCCIÓN completado exitosamente!');
+    // Crear archivo de configuración para hosting
+    const hostingConfig = {
+      backend: {
+        port: process.env.PORT || 3001,
+        database: {
+          host: 'trn.cl',
+          port: 3306,
+          user: 'trn_felipe',
+          password: 'RioNegro2025@',
+          database: 'trn_extraccion'
+        }
+      },
+      deployment: {
+        type: 'hosting-directo',
+        instructions: [
+          '1. Subir archivos del backend a tu hosting',
+          '2. Configurar variables de entorno en el hosting',
+          '3. Instalar dependencias: npm install --production',
+          '4. Iniciar servidor: npm start'
+        ]
+      }
+    };
+    
+    fs.writeFileSync('backend/hosting-config.json', JSON.stringify(hostingConfig, null, 2));
+    console.log('✅ Archivo de configuración para hosting creado');
+    
+    console.log('\n✅ ¡DESPLIEGUE DE PRODUCCIÓN COMPLETADO!');
     console.log('\n🌐 URLs de Producción:');
-    console.log('   - Backend: https://backend-production-6fb4.up.railway.app');
-    console.log('   - Frontend: [Configurar nuevo despliegue]');
+    console.log('   - Backend: [Tu hosting]');
+    console.log('   - Frontend: [URL de Vercel]');
+    console.log('   - Base de datos: trn.cl/trn_extraccion');
+    
+    console.log('\n📋 PRÓXIMOS PASOS:');
+    console.log('   1. Subir archivos del backend a tu hosting');
+    console.log('   2. Configurar variables de entorno en el hosting');
+    console.log('   3. Actualizar URLs en frontend/env.production');
+    console.log('   4. Probar conexión a la base de datos');
+    
+    console.log('\n📁 Archivos para hosting:');
+    console.log('   - backend/ (carpeta completa)');
+    console.log('   - backend/hosting-config.json (configuración)');
+    console.log('   - backend/.env (variables de entorno)');
     
   } catch (error) {
-    console.error('\n❌ Error en el despliegue de producción:', error.message);
-    process.exit(1);
+    console.error('\n❌ ERROR EN EL DESPLIEGUE:');
+    console.error(error.message);
+    console.log('\n🔧 Para solucionar:');
+    console.log('   1. Verificar conexión a internet');
+    console.log('   2. Verificar credenciales de Vercel');
+    console.log('   3. Verificar configuración de hosting');
   }
 }
 
-deployProduction(); 
+deployToProduction(); 
