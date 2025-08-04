@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Box, Typography, Grid, Container, CircularProgress, Alert,
-  Card, CardContent, Button, Chip, Divider, Table, TableBody, 
+  Card, CardContent, Button, Chip, Table, TableBody, 
   TableCell, TableContainer, TableHead, TableRow, Paper
 } from '@mui/material';
 import axios from '../api/axios';
@@ -74,16 +74,16 @@ export default function DanosHistoricosTest() {
         abortControllerRef.current.abort();
       }
     };
-  }, []); // Sin dependencias para evitar re-renderizados
+  }, [fetchData]); // Agregar fetchData como dependencia
 
   // Memoizar las transformaciones de datos para evitar recálculos innecesarios
   const datosMeses = useMemo(() => {
     return datos ? transformMesesData(datos.porMes) : [];
-  }, [datos?.porMes]);
+  }, [datos]);
 
   const datosZonas = useMemo(() => {
     return datos ? transformZonasData(datos.porZona) : [];
-  }, [datos?.porZona]);
+  }, [datos]);
 
   // Datos para gráficas específicas
   const datosTipos = useMemo(() => {

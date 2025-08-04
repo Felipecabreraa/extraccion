@@ -4,6 +4,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import IconButton from '@mui/material/IconButton';
 import axios from '../api/axios';
+import { validateNumericInput } from '../utils/numericValidation';
+import { useEmitUpdate } from '../hooks/useAutoRefresh';
 
 const tiposDano = [
   { value: 'INFRAESTRUCTURA', label: 'INFRAESTRUCTURA', descripciones: [
@@ -21,6 +23,9 @@ const tiposDano = [
 ];
 
 export default function PlanillaDanos({ planillaId }) {
+  // Hook para emitir eventos de actualización
+  const { emitUpdate } = useEmitUpdate();
+  
   const [pabellones, setPabellones] = useState([]);
   const [pabellonesFiltrados, setPabellonesFiltrados] = useState([]);
   const [maquinasFiltradas, setMaquinasFiltradas] = useState([]);
@@ -106,8 +111,17 @@ export default function PlanillaDanos({ planillaId }) {
   };
 
   const handleChange = e => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-    if (e.target.name === 'tipo') {
+    const { name, value } = e.target;
+    
+    // Validación para campos numéricos
+    if (name === 'cantidad') {
+      const cleanValue = validateNumericInput(value, 'integer');
+      setForm({ ...form, [name]: cleanValue });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
+    
+    if (name === 'tipo') {
       setForm(f => ({ ...f, descripcion: '' }));
     }
   };
@@ -128,10 +142,13 @@ export default function PlanillaDanos({ planillaId }) {
         fetchRegistros(); 
         setForm({ pabellon_id: '', maquina_id: '', tipo: '', descripcion: '', cantidad: '', observacion: '' }); 
         
-        // Notificar al dashboard que se actualice
-        window.dispatchEvent(new CustomEvent('danosUpdated', { 
-          detail: { action: 'create', id: response.data.id } 
-        }));
+        // Emitir evento de actualización para otras páginas
+        emitUpdate({ 
+          type: 'dano', 
+          action: 'created',
+          id: response.data.id,
+          planillaId: planillaId
+        });
       })
       .catch(() => setError('Error al agregar'));
   };
@@ -147,11 +164,13 @@ export default function PlanillaDanos({ planillaId }) {
         fetchRegistros(); 
         setDeleteIdx(-1); 
         
-        // Notificar al dashboard que se actualice
-        // Esto se puede hacer mediante un evento personalizado
-        window.dispatchEvent(new CustomEvent('danosUpdated', { 
-          detail: { action: 'delete', id } 
-        }));
+        // Emitir evento de actualización para otras páginas
+        emitUpdate({ 
+          type: 'dano', 
+          action: 'deleted',
+          id: id,
+          planillaId: planillaId
+        });
       })
       .catch(() => setError('Error al eliminar'));
   };
@@ -183,10 +202,13 @@ export default function PlanillaDanos({ planillaId }) {
       setEditData(null);
       setForm({ pabellon_id: '', maquina_id: '', tipo: '', descripcion: '', cantidad: '', observacion: '' });
       
-      // Notificar al dashboard que se actualice
-      window.dispatchEvent(new CustomEvent('danosUpdated', { 
-        detail: { action: 'update', id: editData.id } 
-      }));
+      // Emitir evento de actualización para otras páginas
+      emitUpdate({ 
+        type: 'dano', 
+        action: 'updated',
+        id: editData.id,
+        planillaId: planillaId
+      });
     } catch {
       setError('Error al editar');
     }

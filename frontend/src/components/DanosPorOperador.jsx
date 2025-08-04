@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from '../api/axios';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
-  ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line,
-  AreaChart, Area
+  ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { FaChartBar, FaUsers, FaExclamationTriangle, FaCalendarAlt, FaTrophy } from 'react-icons/fa';
 
@@ -24,11 +23,7 @@ const DanosPorOperador = () => {
   const [error, setError] = useState(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedYear]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(`/dashboard/danos/test-por-operador?year=${selectedYear}`);
@@ -40,7 +35,11 @@ const DanosPorOperador = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return (

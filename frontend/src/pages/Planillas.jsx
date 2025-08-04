@@ -1,19 +1,23 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
-  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, TablePagination, MenuItem, Grid, Chip, FormControl, InputLabel, Select, Alert, FormHelperText
+  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, TablePagination, MenuItem, Grid, Chip, FormControl, InputLabel, Select, Alert, FormHelperText, Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  Refresh as RefreshIcon,
+  Notifications as NotificationsIcon
 } from '@mui/icons-material';
 import axios from '../api/axios';
 import PlanillaBarredores from './PlanillaBarredores';
 import PlanillaMaquinas from './PlanillaMaquinas';
 import PlanillaPabellones from './PlanillaPabellones';
 import PlanillaDanos from './PlanillaDanos';
+import { validateNumericInput } from '../utils/numericValidation';
+import { useAutoRefresh, useEmitUpdate } from '../hooks/useAutoRefresh';
 
 export default function Planillas() {
   const [planillas, setPlanillas] = useState([]);
@@ -30,9 +34,13 @@ export default function Planillas() {
     fecha_termino: '',
     nro_ticket: '',
     pabellones_total: '',
-    pabellones_limpiados: ''
+    pabellones_limpiados: '',
+    estado: 'PENDIENTE',
+    observacion: ''
   });
   const [filtroSupervisor, setFiltroSupervisor] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroSupervisorSelect, setFiltroSupervisorSelect] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -49,12 +57,20 @@ export default function Planillas() {
   const [planillaDanosOpen, setPlanillaDanosOpen] = useState(false);
   const [planillaIdDanos, setPlanillaIdDanos] = useState(null);
 
+  // Hook para emitir eventos de actualización
+  const { emitUpdate } = useEmitUpdate();
+
   // Cargar planillas con filtros
-  const fetchPlanillas = useCallback(async () => {
+  const fetchPlanillas = useCallback(async (showLoading = false, signal = null) => {
     try {
-      const res = await axios.get('/planillas');
+      const res = await axios.get('/planillas', { signal });
       setPlanillas(res.data);
+      setError('');
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('Request cancelado');
+        return;
+      }
       console.error('Error cargando planillas:', error);
       setError('Error al cargar planillas');
     }
@@ -93,15 +109,26 @@ export default function Planillas() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchPlanillas();
-    fetchSupervisores();
-  }, [fetchPlanillas, fetchSupervisores]);
+  // Usar el hook de auto-refresh para planillas
+  const {
+    isRefreshing,
+    lastUpdate,
+    autoRefreshEnabled,
+    manualRefresh,
+    toggleAutoRefresh
+  } = useAutoRefresh(fetchPlanillas, 30000, true);
 
-  // Cargar zonas al iniciar
+  // Cargar datos iniciales
   useEffect(() => {
+    fetchPlanillas(true);
+    fetchSupervisores();
     fetchZonas();
-  }, [fetchZonas]);
+  }, [fetchPlanillas, fetchSupervisores, fetchZonas]);
+
+  // Resetear página cuando cambien los filtros
+  useEffect(() => {
+    setPage(0);
+  }, [filtroSupervisor, filtroSupervisorSelect, filtroEstado]);
 
   // Limpiar campos cuando cambie el supervisor (solo para nueva planilla)
   useEffect(() => {
@@ -114,7 +141,9 @@ export default function Planillas() {
         fecha_termino: '', 
         nro_ticket: '',
         pabellones_total: '',
-        pabellones_limpiados: ''
+        pabellones_limpiados: '',
+        estado: 'PENDIENTE',
+        observacion: ''
       }));
     }
   }, [formData.supervisor, editingPlanilla]);
@@ -130,7 +159,9 @@ export default function Planillas() {
         fecha_termino: '', 
         nro_ticket: '',
         pabellones_total: '',
-        pabellones_limpiados: ''
+        pabellones_limpiados: '',
+        estado: 'PENDIENTE',
+        observacion: ''
       }));
     }
     if (formData.zona_id) {
@@ -151,7 +182,9 @@ export default function Planillas() {
           nro_ticket: sector.ticket, 
           zona_id: sector.zona_id,
           pabellones_total: sector.cantidad_pabellones || 0,
-          pabellones_limpiados: ''
+          pabellones_limpiados: '',
+          estado: 'PENDIENTE',
+          observacion: ''
         }));
       }
     }
@@ -227,16 +260,22 @@ export default function Planillas() {
         return;
       }
 
+      // Validar que pabellones_total tenga un valor válido
+      if (!formData.pabellones_total || parseInt(formData.pabellones_total) <= 0) {
+        setError('Debe seleccionar un sector válido con pabellones');
+        return;
+      }
+
       // Preparar datos para enviar
       const planillaData = {
-        supervisor_id: parseInt(formData.supervisor) || null,
+        supervisor_id: parseInt(formData.supervisor),
         zona_id: formData.zona_id ? parseInt(formData.zona_id) : null,
-        sector_id: parseInt(formData.sector_id) || null,
+        sector_id: parseInt(formData.sector_id),
         fecha_inicio: formData.fecha_inicio,
         fecha_termino: formData.fecha_termino || null,
         ticket: formData.nro_ticket || null,
-        pabellones_total: parseInt(formData.pabellones_total) || null,
-        pabellones_limpiados: parseInt(formData.pabellones_limpiados) || null,
+        pabellones_total: formData.pabellones_total ? parseInt(formData.pabellones_total) : 0,
+        pabellones_limpiados: formData.pabellones_limpiados ? parseInt(formData.pabellones_limpiados) : null,
         estado: formData.estado || 'PENDIENTE',
         observacion: formData.observacion || null
       };
@@ -247,6 +286,14 @@ export default function Planillas() {
         return;
       }
 
+      // Validar que pabellones_limpiados no exceda pabellones_total
+      if (planillaData.pabellones_limpiados && planillaData.pabellones_limpiados > planillaData.pabellones_total) {
+        setError('Los pabellones trabajados no pueden exceder la cantidad total de pabellones');
+        return;
+      }
+
+      console.log('📤 Enviando datos al backend:', planillaData);
+
       if (editingPlanilla) {
         await axios.put(`/planillas/${editingPlanilla}`, planillaData);
         setError('Planilla actualizada exitosamente');
@@ -255,7 +302,16 @@ export default function Planillas() {
         setError('Planilla creada exitosamente');
       }
       setOpenModal(false);
-      fetchPlanillas();
+      
+      // Emitir evento de actualización para otras páginas
+      emitUpdate({ 
+        type: 'planilla', 
+        action: editingPlanilla ? 'updated' : 'created',
+        id: editingPlanilla || 'new'
+      });
+      
+      // Actualizar lista local
+      manualRefresh();
     } catch (error) {
       console.error('Error guardando planilla:', error);
       setError(error.response?.data?.message || 'Error al guardar la planilla');
@@ -268,7 +324,16 @@ export default function Planillas() {
       try {
         await axios.delete(`/planillas/${id}`);
         setError('Planilla eliminada exitosamente');
-        fetchPlanillas();
+        
+        // Emitir evento de actualización para otras páginas
+        emitUpdate({ 
+          type: 'planilla', 
+          action: 'deleted',
+          id: id
+        });
+        
+        // Actualizar lista local
+        manualRefresh();
       } catch (error) {
         console.error('Error eliminando planilla:', error);
         setError('Error al eliminar la planilla');
@@ -281,7 +346,17 @@ export default function Planillas() {
     try {
       await axios.put(`/planillas/${planilla.id}`, { ...planilla, estado: 'ACTIVA' });
       setError('Planilla marcada como activa');
-      fetchPlanillas();
+      
+      // Emitir evento de actualización para otras páginas
+      emitUpdate({ 
+        type: 'planilla', 
+        action: 'status_changed',
+        id: planilla.id,
+        newStatus: 'ACTIVA'
+      });
+      
+      // Actualizar lista local
+      manualRefresh();
     } catch (error) {
       console.error('Error marcando planilla como activa:', error);
       setError('Error al marcar como activa');
@@ -356,10 +431,19 @@ export default function Planillas() {
 
   // Filtrar planillas
   const planillasFiltradas = planillas.filter(planilla => {
-    const matchesFiltro = !filtroSupervisor || 
+    // Filtro por texto de supervisor
+    const matchesFiltroSupervisor = !filtroSupervisor || 
       planilla.supervisor_nombre?.toLowerCase().includes(filtroSupervisor.toLowerCase());
     
-    return matchesFiltro;
+    // Filtro por select de supervisor
+    const matchesSupervisorSelect = !filtroSupervisorSelect || 
+      planilla.supervisor_id === parseInt(filtroSupervisorSelect);
+    
+    // Filtro por estado
+    const matchesEstado = !filtroEstado || 
+      planilla.estado === filtroEstado;
+    
+    return matchesFiltroSupervisor && matchesSupervisorSelect && matchesEstado;
   });
 
   // Paginar planillas
@@ -372,50 +456,250 @@ export default function Planillas() {
     <Box>
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 600, color: '#333' }}>
-          Listado de Planillas de Producción
-        </Typography>
+        <Box>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 600, color: '#333' }}>
+            Listado de Planillas de Producción
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            Última actualización: {lastUpdate.toLocaleTimeString()}
+          </Typography>
+        </Box>
         
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenModal()}
-          sx={{ 
-            bgcolor: '#20B2AA',
-            color: 'white',
-            borderRadius: '6px',
-            textTransform: 'none',
-            fontWeight: 500,
-            '&:hover': { bgcolor: '#1a9a94' }
-          }}
-        >
-          + Agregar Planilla
-        </Button>
+        <Box display="flex" alignItems="center" gap={2}>
+          {/* Controles de actualización */}
+          <Tooltip title="Actualizar datos">
+            <IconButton onClick={manualRefresh} disabled={isRefreshing}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip title={autoRefreshEnabled ? 'Desactivar auto-refresh' : 'Activar auto-refresh'}>
+            <IconButton onClick={toggleAutoRefresh} color={autoRefreshEnabled ? 'success' : 'default'}>
+              <NotificationsIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenModal()}
+            sx={{ 
+              bgcolor: '#20B2AA',
+              color: 'white',
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '1rem',
+              padding: '12px 24px',
+              border: '2px solid #20B2AA',
+              boxShadow: '0 2px 8px rgba(32, 178, 170, 0.3)',
+              '&:hover': { 
+                bgcolor: '#1a9a94',
+                borderColor: '#1a9a94',
+                boxShadow: '0 4px 12px rgba(32, 178, 170, 0.4)',
+                transform: 'translateY(-1px)'
+              }
+            }}
+          >
+            ➕ Agregar Planilla
+          </Button>
+        </Box>
       </Box>
 
       {/* Filtros */}
       <Box sx={{ mb: 3 }}>
-        <TextField
-          fullWidth
-          placeholder="Buscar por supervisor, se..."
-          value={filtroSupervisor}
-          onChange={(e) => setFiltroSupervisor(e.target.value)}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '6px',
-              backgroundColor: '#f5f5f5',
-              '& fieldset': {
-                borderColor: '#e0e0e0'
-              },
-              '&:hover fieldset': {
-                borderColor: '#ccc'
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: '#20B2AA'
-              }
-            }
-          }}
-        />
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={4}>
+            <TextField
+              fullWidth
+              placeholder="Buscar por supervisor..."
+              value={filtroSupervisor}
+              onChange={(e) => setFiltroSupervisor(e.target.value)}
+              label="🔍 Buscar Supervisor"
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '10px',
+                  backgroundColor: '#f8f9fa',
+                  minHeight: '64px',
+                  fontSize: '1.1rem',
+                  '& fieldset': {
+                    borderColor: '#e0e0e0',
+                    borderWidth: '3px'
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#20B2AA',
+                    borderWidth: '3px'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#20B2AA',
+                    borderWidth: '3px'
+                  },
+                  '& input': {
+                    fontSize: '1.1rem',
+                    fontWeight: 500,
+                    color: '#333',
+                    padding: '16px 14px'
+                  }
+                },
+                '& .MuiInputLabel-root': {
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: '#333'
+                }
+              }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth>
+              <InputLabel sx={{ fontSize: '1rem', fontWeight: 600, color: '#333' }}>
+                👥 Filtrar por Supervisor
+              </InputLabel>
+              <Select
+                value={filtroSupervisorSelect}
+                onChange={(e) => setFiltroSupervisorSelect(e.target.value)}
+                label="👥 Filtrar por Supervisor"
+                sx={{
+                  borderRadius: '10px',
+                  backgroundColor: '#f8f9fa',
+                  minHeight: '64px',
+                  fontSize: '1.1rem',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#e0e0e0',
+                    borderWidth: '3px'
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#20B2AA',
+                    borderWidth: '3px'
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#20B2AA',
+                    borderWidth: '3px'
+                  },
+                  '& .MuiSelect-select': {
+                    fontSize: '1.1rem',
+                    fontWeight: 500,
+                    color: '#333',
+                    padding: '16px 14px'
+                  }
+                }}
+              >
+                <MenuItem value="" sx={{ fontSize: '1rem', fontWeight: 500 }}>
+                  👥 Todos los supervisores
+                </MenuItem>
+                {supervisores.map(supervisor => (
+                  <MenuItem key={supervisor.id} value={supervisor.id} sx={{ fontSize: '1rem' }}>
+                    👤 {supervisor.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth>
+              <InputLabel sx={{ fontSize: '1rem', fontWeight: 600, color: '#333' }}>
+                📋 Filtrar por Estado
+              </InputLabel>
+              <Select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+                label="📋 Filtrar por Estado"
+                sx={{
+                  borderRadius: '10px',
+                  backgroundColor: '#f8f9fa',
+                  minHeight: '64px',
+                  fontSize: '1.1rem',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#e0e0e0',
+                    borderWidth: '3px'
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#20B2AA',
+                    borderWidth: '3px'
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#20B2AA',
+                    borderWidth: '3px'
+                  },
+                  '& .MuiSelect-select': {
+                    fontSize: '1.1rem',
+                    fontWeight: 500,
+                    color: '#333',
+                    padding: '16px 14px'
+                  }
+                }}
+              >
+                <MenuItem value="" sx={{ fontSize: '1rem', fontWeight: 500 }}>
+                  📋 Todos los estados
+                </MenuItem>
+                <MenuItem value="PENDIENTE" sx={{ fontSize: '1rem' }}>
+                  ⏳ Pendiente
+                </MenuItem>
+                <MenuItem value="ACTIVA" sx={{ fontSize: '1rem' }}>
+                  ▶️ Activa
+                </MenuItem>
+                <MenuItem value="COMPLETADA" sx={{ fontSize: '1rem' }}>
+                  ✅ Completada
+                </MenuItem>
+                <MenuItem value="CANCELADA" sx={{ fontSize: '1rem' }}>
+                  ❌ Cancelada
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} md={2}>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setFiltroSupervisor('');
+                setFiltroSupervisorSelect('');
+                setFiltroEstado('');
+                setPage(0);
+              }}
+              fullWidth
+              sx={{
+                borderRadius: '10px',
+                borderColor: '#e0e0e0',
+                borderWidth: '3px',
+                color: '#666',
+                minHeight: '64px',
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: '#20B2AA',
+                  backgroundColor: '#f0f9f8',
+                  color: '#20B2AA',
+                  transform: 'scale(1.02)'
+                }
+              }}
+            >
+              🗑️ Limpiar Filtros
+            </Button>
+          </Grid>
+        </Grid>
+        
+        {/* Contador de resultados */}
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="body2" color="textSecondary">
+            Mostrando {planillasPaginadas.length} de {planillasFiltradas.length} planillas
+            {planillasFiltradas.length !== planillas.length && (
+              <span> (filtradas de {planillas.length} total)</span>
+            )}
+          </Typography>
+          
+          {(filtroSupervisor || filtroSupervisorSelect || filtroEstado) && (
+            <Chip
+              label="Filtros activos"
+              color="primary"
+              size="small"
+              sx={{ fontSize: '0.75rem' }}
+            />
+          )}
+        </Box>
       </Box>
 
       {/* Tabla */}
@@ -473,110 +757,164 @@ export default function Planillas() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
+                    <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
                       <IconButton 
-                        size="small" 
+                        size="medium" 
                         onClick={() => handleOpenModal(planilla)}
                         sx={{ 
-                          color: '#666',
-                          '&:hover': { backgroundColor: '#f0f0f0' }
+                          color: '#20B2AA',
+                          backgroundColor: '#f0f9f8',
+                          border: '2px solid #e0f2f1',
+                          width: '40px',
+                          height: '40px',
+                          '&:hover': { 
+                            backgroundColor: '#e0f2f1',
+                            borderColor: '#20B2AA',
+                            transform: 'scale(1.05)'
+                          }
                         }}
+                        title="Editar planilla"
                       >
-                        <EditIcon fontSize="small" />
+                        <EditIcon fontSize="medium" />
                       </IconButton>
                       <IconButton 
-                        size="small" 
+                        size="medium" 
                         onClick={() => handleDelete(planilla.id)}
                         sx={{ 
                           color: '#d32f2f',
-                          '&:hover': { backgroundColor: '#ffebee' }
+                          backgroundColor: '#ffebee',
+                          border: '2px solid #ffcdd2',
+                          width: '40px',
+                          height: '40px',
+                          '&:hover': { 
+                            backgroundColor: '#ffcdd2',
+                            borderColor: '#d32f2f',
+                            transform: 'scale(1.05)'
+                          }
                         }}
+                        title="Eliminar planilla"
                       >
-                        <DeleteIcon fontSize="small" />
+                        <DeleteIcon fontSize="medium" />
                       </IconButton>
                       
                       {planilla.estado === 'PENDIENTE' && (
                         <IconButton 
-                          size="small" 
+                          size="medium" 
                           onClick={() => handleMarcarActiva(planilla)}
                           sx={{ 
                             color: '#4caf50',
-                            '&:hover': { backgroundColor: '#e8f5e8' }
+                            backgroundColor: '#e8f5e8',
+                            border: '2px solid #c8e6c9',
+                            width: '40px',
+                            height: '40px',
+                            '&:hover': { 
+                              backgroundColor: '#c8e6c9',
+                              borderColor: '#4caf50',
+                              transform: 'scale(1.05)'
+                            }
                           }}
                           title="Marcar como activa"
                         >
-                          <CheckCircleIcon fontSize="small" />
+                          <CheckCircleIcon fontSize="medium" />
                         </IconButton>
                       )}
                       
-                      <Box display="flex" gap={0.5} flexWrap="wrap">
+                      <Box display="flex" gap={1} flexWrap="wrap" sx={{ mt: 1 }}>
                         <Button
-                          size="small"
+                          size="medium"
                           variant="contained"
                           onClick={() => handleOpenBarredores(planilla.id)}
                           sx={{ 
-                            fontSize: '0.75rem',
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
                             bgcolor: '#20B2AA',
                             color: 'white',
-                            borderRadius: '4px',
+                            borderRadius: '8px',
                             textTransform: 'none',
-                            minWidth: '80px',
-                            height: '28px',
-                            '&:hover': { bgcolor: '#1a9a94' }
+                            minWidth: '90px',
+                            height: '36px',
+                            border: '2px solid #20B2AA',
+                            '&:hover': { 
+                              bgcolor: '#1a9a94',
+                              borderColor: '#1a9a94',
+                              transform: 'scale(1.02)'
+                            }
                           }}
+                          title="Gestionar barredores"
                         >
-                          Barredores
+                          👥 Barredores
                         </Button>
                         <Button
-                          size="small"
+                          size="medium"
                           variant="contained"
                           onClick={() => handleOpenMaquinas(planilla.id)}
                           sx={{ 
-                            fontSize: '0.75rem',
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
                             bgcolor: '#20B2AA',
                             color: 'white',
-                            borderRadius: '4px',
+                            borderRadius: '8px',
                             textTransform: 'none',
-                            minWidth: '80px',
-                            height: '28px',
-                            '&:hover': { bgcolor: '#1a9a94' }
+                            minWidth: '90px',
+                            height: '36px',
+                            border: '2px solid #20B2AA',
+                            '&:hover': { 
+                              bgcolor: '#1a9a94',
+                              borderColor: '#1a9a94',
+                              transform: 'scale(1.02)'
+                            }
                           }}
+                          title="Gestionar máquinas"
                         >
-                          Máquinas
+                          🚜 Máquinas
                         </Button>
                         <Button
-                          size="small"
+                          size="medium"
                           variant="contained"
                           onClick={() => handleOpenPabellones(planilla.id)}
                           sx={{ 
-                            fontSize: '0.75rem',
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
                             bgcolor: '#20B2AA',
                             color: 'white',
-                            borderRadius: '4px',
+                            borderRadius: '8px',
                             textTransform: 'none',
-                            minWidth: '80px',
-                            height: '28px',
-                            '&:hover': { bgcolor: '#1a9a94' }
+                            minWidth: '90px',
+                            height: '36px',
+                            border: '2px solid #20B2AA',
+                            '&:hover': { 
+                              bgcolor: '#1a9a94',
+                              borderColor: '#1a9a94',
+                              transform: 'scale(1.02)'
+                            }
                           }}
+                          title="Gestionar pabellones"
                         >
-                          Pabellones
+                          🏢 Pabellones
                         </Button>
                         <Button
-                          size="small"
+                          size="medium"
                           variant="contained"
                           onClick={() => handleOpenDanos(planilla.id)}
                           sx={{ 
-                            fontSize: '0.75rem',
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
                             bgcolor: '#20B2AA',
                             color: 'white',
-                            borderRadius: '4px',
+                            borderRadius: '8px',
                             textTransform: 'none',
-                            minWidth: '80px',
-                            height: '28px',
-                            '&:hover': { bgcolor: '#1a9a94' }
+                            minWidth: '90px',
+                            height: '36px',
+                            border: '2px solid #20B2AA',
+                            '&:hover': { 
+                              bgcolor: '#1a9a94',
+                              borderColor: '#1a9a94',
+                              transform: 'scale(1.02)'
+                            }
                           }}
+                          title="Gestionar daños"
                         >
-                          Daños
+                          ⚠️ Daños
                         </Button>
                       </Box>
                     </Box>
@@ -673,7 +1011,36 @@ export default function Planillas() {
                 <InputLabel>Sector</InputLabel>
                 <Select
                   value={formData.sector_id}
-                  onChange={(e) => setFormData({...formData, sector_id: e.target.value})}
+                  onChange={async (e) => {
+                    const sectorId = e.target.value;
+                    setFormData(prev => ({
+                      ...prev, 
+                      sector_id: sectorId, 
+                      pabellones_total: '', 
+                      pabellones_limpiados: ''
+                    }));
+                    
+                    // Cargar la cantidad de pabellones predeterminada del sector
+                    if (sectorId) {
+                      try {
+                        const sectorRes = await axios.get(`/sectores/${sectorId}`);
+                        const cantidadPabellones = sectorRes.data.cantidad_pabellones || 0;
+                        setFormData(prev => ({
+                          ...prev, 
+                          sector_id: sectorId, 
+                          pabellones_total: cantidadPabellones.toString()
+                        }));
+                      } catch (error) {
+                        console.error('Error cargando datos del sector:', error);
+                        // En caso de error, establecer un valor por defecto
+                        setFormData(prev => ({
+                          ...prev, 
+                          sector_id: sectorId, 
+                          pabellones_total: '0'
+                        }));
+                      }
+                    }
+                  }}
                   label="Sector"
                   disabled={!formData.zona_id}
                 >
@@ -692,11 +1059,16 @@ export default function Planillas() {
                 fullWidth
                 label="Cantidad de Pabellones"
                 type="number"
-                value={formData.pabellones_total}
-                onChange={(e) => setFormData({...formData, pabellones_total: e.target.value})}
+                value={formData.pabellones_total || ''}
                 InputLabelProps={{ shrink: true }}
-                helperText="Cantidad de pabellones del sector seleccionado."
-                disabled={!formData.sector_id}
+                helperText="Cantidad de pabellones predeterminada del sector (no editable)."
+                disabled={true}
+                sx={{
+                  '& .MuiInputBase-input': {
+                    backgroundColor: '#f5f5f5',
+                    color: '#666'
+                  }
+                }}
               />
             </Grid>
             
@@ -705,15 +1077,34 @@ export default function Planillas() {
                 fullWidth
                 label="Pabellones Trabajados"
                 type="number"
-                value={formData.pabellones_limpiados}
-                onChange={(e) => setFormData({...formData, pabellones_limpiados: e.target.value})}
+                value={formData.pabellones_limpiados || ''}
+                onChange={(e) => {
+                  const value = validateNumericInput(e.target.value, 'integer');
+                  const maxPabellones = parseInt(formData.pabellones_total) || 0;
+                  
+                  // Validar que no exceda la cantidad de pabellones del sector
+                  if (value > maxPabellones) {
+                    setError(`No puede exceder la cantidad de pabellones del sector (${maxPabellones})`);
+                    return;
+                  }
+                  
+                  // Validar que no sea menor a 1
+                  if (value < 1 && value !== '') {
+                    setError('Debe ser al menos 1');
+                    return;
+                  }
+                  
+                  setError('');
+                  setFormData(prev => ({...prev, pabellones_limpiados: value}));
+                }}
                 InputLabelProps={{ shrink: true }}
-                helperText="Cantidad de pabellones en los que se trabajó."
-                disabled={!formData.pabellones_total}
+                helperText={`Cantidad de pabellones en los que se trabajó (máximo: ${formData.pabellones_total || 0})`}
+                disabled={!formData.pabellones_total || parseInt(formData.pabellones_total) === 0}
                 inputProps={{
                   min: 1,
                   max: formData.pabellones_total || 999
                 }}
+                error={!!error && error.includes('pabellones')}
               />
             </Grid>
             
@@ -721,8 +1112,8 @@ export default function Planillas() {
               <TextField
                 fullWidth
                 label="Nro. Ticket"
-                value={formData.nro_ticket}
-                onChange={(e) => setFormData({...formData, nro_ticket: e.target.value})}
+                value={formData.nro_ticket || ''}
+                onChange={(e) => setFormData(prev => ({...prev, nro_ticket: e.target.value}))}
                 helperText="Número de ticket asociado a la planilla."
               />
             </Grid>
@@ -732,8 +1123,8 @@ export default function Planillas() {
                 fullWidth
                 label="Fecha Inicio"
                 type="date"
-                value={formData.fecha_inicio}
-                onChange={(e) => setFormData({...formData, fecha_inicio: e.target.value})}
+                value={formData.fecha_inicio || ''}
+                onChange={(e) => setFormData(prev => ({...prev, fecha_inicio: e.target.value}))}
                 InputLabelProps={{ shrink: true }}
                 helperText="Seleccione la fecha de inicio de la planilla."
               />
@@ -744,8 +1135,8 @@ export default function Planillas() {
                 fullWidth
                 label="Fecha Término"
                 type="date"
-                value={formData.fecha_termino}
-                onChange={(e) => setFormData({...formData, fecha_termino: e.target.value})}
+                value={formData.fecha_termino || ''}
+                onChange={(e) => setFormData(prev => ({...prev, fecha_termino: e.target.value}))}
                 InputLabelProps={{ shrink: true }}
                 helperText="Seleccione la fecha de término de la planilla."
               />
@@ -755,8 +1146,8 @@ export default function Planillas() {
               <FormControl fullWidth>
                 <InputLabel>Estado</InputLabel>
                 <Select
-                  value={formData.estado}
-                  onChange={(e) => setFormData({...formData, estado: e.target.value})}
+                  value={formData.estado || 'PENDIENTE'}
+                  onChange={(e) => setFormData(prev => ({...prev, estado: e.target.value}))}
                   label="Estado"
                 >
                   <MenuItem value="PENDIENTE">Pendiente</MenuItem>
@@ -774,8 +1165,8 @@ export default function Planillas() {
                 label="Observación"
                 multiline
                 rows={4}
-                value={formData.observacion}
-                onChange={(e) => setFormData({...formData, observacion: e.target.value})}
+                value={formData.observacion || ''}
+                onChange={(e) => setFormData(prev => ({...prev, observacion: e.target.value}))}
                 helperText="Ingrese cualquier observación adicional."
               />
             </Grid>
@@ -791,19 +1182,43 @@ export default function Planillas() {
           <Button 
             onClick={() => setOpenModal(false)}
             variant="outlined"
-            sx={{ color: '#666', borderColor: '#ccc' }}
+            sx={{ 
+              color: '#666', 
+              borderColor: '#ccc',
+              borderRadius: '8px',
+              fontSize: '0.95rem',
+              fontWeight: 500,
+              padding: '10px 20px',
+              borderWidth: '2px',
+              '&:hover': {
+                borderColor: '#999',
+                backgroundColor: '#f5f5f5',
+                color: '#333'
+              }
+            }}
           >
-            Cancelar
+            ❌ Cancelar
           </Button>
           <Button 
             onClick={handleSave} 
             variant="contained"
             sx={{ 
               bgcolor: '#20B2AA',
-              '&:hover': { bgcolor: '#1a9a94' }
+              borderRadius: '8px',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              padding: '10px 24px',
+              border: '2px solid #20B2AA',
+              boxShadow: '0 2px 8px rgba(32, 178, 170, 0.3)',
+              '&:hover': { 
+                bgcolor: '#1a9a94',
+                borderColor: '#1a9a94',
+                boxShadow: '0 4px 12px rgba(32, 178, 170, 0.4)',
+                transform: 'translateY(-1px)'
+              }
             }}
           >
-            Guardar
+            💾 Guardar
           </Button>
         </DialogActions>
       </Dialog>
@@ -821,7 +1236,24 @@ export default function Planillas() {
             <PlanillaBarredores planillaId={planillaIdSeleccionada} />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseBarredores}>Cerrar</Button>
+            <Button 
+              onClick={handleCloseBarredores}
+              variant="contained"
+              sx={{ 
+                bgcolor: '#20B2AA',
+                borderRadius: '8px',
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                padding: '10px 20px',
+                border: '2px solid #20B2AA',
+                '&:hover': { 
+                  bgcolor: '#1a9a94',
+                  borderColor: '#1a9a94'
+                }
+              }}
+            >
+              🔒 Cerrar
+            </Button>
           </DialogActions>
         </Dialog>
       )}
@@ -838,7 +1270,24 @@ export default function Planillas() {
             <PlanillaMaquinas planillaId={planillaIdMaquinas} />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseMaquinas}>Cerrar</Button>
+            <Button 
+              onClick={handleCloseMaquinas}
+              variant="contained"
+              sx={{ 
+                bgcolor: '#20B2AA',
+                borderRadius: '8px',
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                padding: '10px 20px',
+                border: '2px solid #20B2AA',
+                '&:hover': { 
+                  bgcolor: '#1a9a94',
+                  borderColor: '#1a9a94'
+                }
+              }}
+            >
+              🔒 Cerrar
+            </Button>
           </DialogActions>
         </Dialog>
       )}
@@ -855,7 +1304,24 @@ export default function Planillas() {
             <PlanillaPabellones planillaId={planillaIdPabellones} />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClosePabellones}>Cerrar</Button>
+            <Button 
+              onClick={handleClosePabellones}
+              variant="contained"
+              sx={{ 
+                bgcolor: '#20B2AA',
+                borderRadius: '8px',
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                padding: '10px 20px',
+                border: '2px solid #20B2AA',
+                '&:hover': { 
+                  bgcolor: '#1a9a94',
+                  borderColor: '#1a9a94'
+                }
+              }}
+            >
+              🔒 Cerrar
+            </Button>
           </DialogActions>
         </Dialog>
       )}
@@ -872,7 +1338,24 @@ export default function Planillas() {
             <PlanillaDanos planillaId={planillaIdDanos} />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDanos}>Cerrar</Button>
+            <Button 
+              onClick={handleCloseDanos}
+              variant="contained"
+              sx={{ 
+                bgcolor: '#20B2AA',
+                borderRadius: '8px',
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                padding: '10px 20px',
+                border: '2px solid #20B2AA',
+                '&:hover': { 
+                  bgcolor: '#1a9a94',
+                  borderColor: '#1a9a94'
+                }
+              }}
+            >
+              🔒 Cerrar
+            </Button>
           </DialogActions>
         </Dialog>
       )}

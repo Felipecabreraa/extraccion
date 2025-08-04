@@ -162,6 +162,7 @@ exports.listar = async (req, res) => {
 // Obtener un registro específico
 exports.obtener = async (req, res) => {
   try {
+    console.log(`🔍 Método obtener llamado con ID: ${req.params.id}`);
     const registro = await MetrosSuperficie.findByPk(req.params.id, {
       include: [
         {
@@ -382,6 +383,80 @@ exports.eliminar = async (req, res) => {
   }
 };
 
+// Obtener estadísticas generales
+exports.obtenerEstadisticas = async (req, res) => {
+  try {
+    console.log('🚀 Método obtenerEstadisticas ejecutándose');
+    const { year, month } = req.query;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+    const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
+
+    console.log(`🔍 Buscando datos para: ${currentYear}-${currentMonth}`);
+
+    // Calcular fechas del mes
+    const primerDia = new Date(currentYear, currentMonth - 1, 1);
+    const ultimoDia = new Date(currentYear, currentMonth, 0);
+
+    // Obtener datos del mes
+    const datosMes = await MetrosSuperficie.findAll({
+      where: {
+        fecha: {
+          [Op.between]: [primerDia, ultimoDia]
+        }
+      },
+      include: [
+        {
+          model: Zona,
+          as: 'Zona',
+          attributes: ['id', 'nombre', 'tipo']
+        },
+        {
+          model: Sector,
+          as: 'Sector',
+          attributes: ['id', 'nombre', 'mt2']
+        }
+      ],
+      order: [['fecha', 'ASC']]
+    });
+
+    // Calcular totales por tipo de zona
+    const totales = {
+      HEMBRA: { pabellones: 0, metros: 0 },
+      MACHO: { pabellones: 0, metros: 0 }
+    };
+
+    datosMes.forEach(registro => {
+      const tipo = registro.tipo_zona;
+      if (totales[tipo]) {
+        totales[tipo].pabellones += registro.pabellones_limpiados;
+        totales[tipo].metros += parseFloat(registro.metros_cuadrados);
+      }
+    });
+
+    // Calcular totales generales
+    const totalGeneral = {
+      pabellones: totales.HEMBRA.pabellones + totales.MACHO.pabellones,
+      metros: totales.HEMBRA.metros + totales.MACHO.metros
+    };
+
+    console.log(`✅ Enviando respuesta para ${currentYear}-${currentMonth}: ${datosMes.length} registros`);
+    res.json({
+      year: currentYear,
+      month: currentMonth,
+      totales,
+      totalGeneral,
+      registros: datosMes.length
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo estadísticas:', error);
+    res.status(500).json({ 
+      message: 'Error obteniendo estadísticas',
+      error: error.message 
+    });
+  }
+};
+
 // Obtener estadísticas por quincena
 exports.obtenerEstadisticasQuincena = async (req, res) => {
   try {
@@ -503,6 +578,7 @@ exports.obtenerEstadisticasQuincena = async (req, res) => {
 // Obtener datos para el mes anterior
 exports.obtenerMesAnterior = async (req, res) => {
   try {
+    console.log('🚀 Método obtenerMesAnterior ejecutándose');
     const { year, month } = req.query;
     const currentYear = year ? parseInt(year) : new Date().getFullYear();
     const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
@@ -534,10 +610,12 @@ exports.obtenerMesAnterior = async (req, res) => {
 
     const totalMesAnterior = parseFloat(resultado?.total_metros || 0);
 
+    console.log(`✅ Enviando respuesta mes anterior: ${yearAnterior}-${mesAnterior}: ${totalMesAnterior} m²`);
     res.json({
       year: yearAnterior,
       month: mesAnterior,
-      total_metros: totalMesAnterior
+      total_metros: totalMesAnterior,
+      registros: resultado ? 1 : 0
     });
 
   } catch (error) {

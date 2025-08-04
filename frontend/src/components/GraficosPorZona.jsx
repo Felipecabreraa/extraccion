@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -34,7 +34,7 @@ const GraficosPorZona = ({ selectedYear, selectedMonth, selectedOrigen }) => {
   const [zonasExpandidas, setZonasExpandidas] = useState({});
 
   // Cargar datos por zona con filtros
-  const fetchDatosPorZona = async () => {
+  const fetchDatosPorZona = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -69,12 +69,12 @@ const GraficosPorZona = ({ selectedYear, selectedMonth, selectedOrigen }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear, selectedMonth, selectedOrigen]);
 
   // Recargar datos cuando cambien los filtros
   useEffect(() => {
     fetchDatosPorZona();
-  }, [selectedYear, selectedMonth, selectedOrigen]);
+  }, [fetchDatosPorZona]);
 
   const toggleZonaExpansion = (zonaId) => {
     setZonasExpandidas(prev => ({

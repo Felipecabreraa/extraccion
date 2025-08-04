@@ -8,6 +8,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import axios from '../api/axios';
+import { validateNumericInput } from '../utils/numericValidation';
 
 export default function Sectores() {
   const [zonas, setZonas] = useState([]);
@@ -173,7 +174,7 @@ export default function Sectores() {
           <TextField
             label="MT2"
             value={form.mt2}
-            onChange={e => setForm({ ...form, mt2: e.target.value.replace(/[^0-9]/g, '') })}
+            onChange={e => setForm({ ...form, mt2: validateNumericInput(e.target.value, 'integer') })}
             fullWidth
             margin="dense"
             type="number"
@@ -184,7 +185,7 @@ export default function Sectores() {
           <TextField
             label="Cantidad de pabellones"
             value={form.cantidad_pabellones}
-            onChange={e => setForm({ ...form, cantidad_pabellones: e.target.value.replace(/[^0-9]/g, '') })}
+            onChange={e => setForm({ ...form, cantidad_pabellones: validateNumericInput(e.target.value, 'integer') })}
             fullWidth
             margin="dense"
             type="number"

@@ -16,8 +16,10 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_ENVIRONMENT || 'production');
 
   const logout = () => {
+    console.log('Cerrando sesión...');
     setUsuario(null);
     setToken(null);
     setError(null);
@@ -29,17 +31,23 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const verifyToken = async () => {
       if (!token) {
+        console.log('No hay token almacenado');
         setLoading(false);
         return;
       }
 
       try {
+        console.log('Verificando token...');
         const response = await axios.get('/auth/verify');
+        console.log('Token válido:', response.data.usuario);
         setUsuario(response.data.usuario);
         setError(null);
       } catch (err) {
         console.error('Error verificando token:', err);
-        logout();
+        if (err.response?.status === 401) {
+          console.log('Token inválido o expirado, cerrando sesión');
+          logout();
+        }
       } finally {
         setLoading(false);
       }
@@ -54,6 +62,7 @@ export function AuthProvider({ children }) {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
+          console.log('Error 401 detectado, cerrando sesión');
           logout();
         }
         return Promise.reject(error);
@@ -70,15 +79,19 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       
+      console.log('Intentando login...');
       const response = await axios.post('/auth/login', credentials);
-      const { token: newToken, usuario: userData } = response.data;
+      const { token: newToken, usuario: userData, environment: env } = response.data;
       
+      console.log('Login exitoso:', userData);
       setUsuario(userData);
       setToken(newToken);
+      setEnvironment(env || environment);
       localStorage.setItem('token', newToken);
       
       return { success: true };
     } catch (err) {
+      console.error('Error en login:', err);
       const errorMessage = err.response?.data?.message || 'Error en el inicio de sesión';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -152,6 +165,7 @@ export function AuthProvider({ children }) {
     token,
     loading,
     error,
+    environment,
     isAuthenticated,
     isAdmin,
     isSupervisor,

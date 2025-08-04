@@ -1,37 +1,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Box, Typography, Grid, Card, CardContent, Paper, Chip,
-  CircularProgress, Alert, IconButton, Tooltip,
+  Box, Typography, Grid, Card, CardContent, Paper, Alert, IconButton, Tooltip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Skeleton, Tabs, Tab, Button, MenuItem, Select, FormControl, InputLabel,
   Dialog, DialogTitle, DialogContent, DialogActions, Container, Fade
 } from '@mui/material';
 import {
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
   Refresh as RefreshIcon,
   Assessment as AssessmentIcon,
   Timeline as TimelineIcon,
   LocationOn as LocationIcon,
   Build as BuildIcon,
   CalendarToday as CalendarIcon,
-  ShowChart as ShowChartIcon,
   Analytics as AnalyticsIcon,
   Psychology as PsychologyIcon,
   Notifications as NotificationsIcon
 } from '@mui/icons-material';
 import axios from '../api/axios';
-import { useAuth } from '../context/AuthContext';
 import BarChartKPI from '../components/BarChartKPI';
 import KPIVisual from '../components/KPIVisual';
-import StackedBarChartKPI from '../components/StackedBarChartKPI';
 import DonutChartKPI from '../components/DonutChartKPI';
 import RadarChartKPI from '../components/RadarChartKPI';
 import HeatmapGridKPI from '../components/HeatmapGridKPI';
 import AlertasInteligentes from '../components/AlertasInteligentes';
-import AnalisisPredictivo from '../components/AnalisisPredictivo';
 import GraficosPorZona from '../components/GraficosPorZona';
 import { transformDanoStats } from '../utils/dataTransformers';
+import { useEmitUpdate } from '../hooks/useAutoRefresh';
 
 // Componente para gráfico de barras mejorado
 const SimpleBarChart = ({ data, title, height = 400 }) => {
@@ -384,11 +378,8 @@ const DataTable = ({ data, title, columns }) => {
 };
 
 export default function Danos() {
-  const { usuario } = useAuth();
   const [danoStats, setDanoStats] = useState(null);
-  const [predictiveData, setPredictiveData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [predictiveLoading, setPredictiveLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -400,6 +391,9 @@ export default function Danos() {
   const [detailData, setDetailData] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+
+  // Hook para emitir eventos de actualización
+  const { emitUpdate } = useEmitUpdate();
 
   // Generar lista de años (últimos 5 años y el actual)
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 5 + i);
@@ -455,18 +449,15 @@ export default function Danos() {
 
   const fetchPredictiveData = useCallback(async () => {
     try {
-      setPredictiveLoading(true);
       // TEMPORAL: Comentar datos predictivos hasta que esté implementado
       // const response = await axios.get(`/danos/predictive?year=${selectedYear}`);
       // setPredictiveData(response.data);
-      setPredictiveData(null); // Por ahora no hay datos predictivos
+      // Por ahora no hay datos predictivos
     } catch (err) {
       console.error('Error fetching predictive data:', err);
       // No mostrar error para datos predictivos, son opcionales
-    } finally {
-      setPredictiveLoading(false);
     }
-  }, [selectedYear]);
+  }, []);
 
   useEffect(() => {
     fetchDanoStats();
@@ -574,7 +565,6 @@ export default function Danos() {
   }
 
   // Preparar datos para gráficos
-  const stackedBarData = danoStats?.stackedBarData || [];
   const heatmapData = danoStats?.heatmapData || [];
 
   return (

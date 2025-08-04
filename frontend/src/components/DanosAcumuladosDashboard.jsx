@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { 
   Card, 
@@ -50,7 +50,7 @@ const DanosAcumuladosDashboard = () => {
   };
 
   // Cargar datos
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -69,11 +69,11 @@ const DanosAcumuladosDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [anioSeleccionado]);
 
   useEffect(() => {
     cargarDatos();
-  }, [anioSeleccionado]);
+  }, [cargarDatos]);
 
   if (loading) {
     return (

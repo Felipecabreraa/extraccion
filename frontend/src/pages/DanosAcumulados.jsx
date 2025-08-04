@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { 
   Card, 
@@ -33,10 +33,8 @@ import {
 import { 
   Event, 
   TrendingUp, 
-  AttachMoney, 
   Warning, 
   CheckCircle, 
-  Cancel,
   Edit,
   Add,
   Upload,
@@ -44,6 +42,7 @@ import {
 } from '@mui/icons-material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import CargaMasivaDanos from '../components/CargaMasivaDanos';
+import { validateNumericInput } from '../utils/numericValidation';
 
 // TabPanel component for Material-UI Tabs
 const TabPanel = ({ children, value, index, ...other }) => (
@@ -103,7 +102,7 @@ const DanosAcumulados = () => {
   };
 
   // Cargar datos principales
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -125,7 +124,7 @@ const DanosAcumulados = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [anioSeleccionado]);
 
   // Crear/actualizar registro
   const crearRegistro = async () => {
@@ -247,7 +246,7 @@ const DanosAcumulados = () => {
 
   useEffect(() => {
     cargarDatos();
-  }, [anioSeleccionado]);
+  }, [anioSeleccionado, cargarDatos]);
 
   if (loading) {
     return (
@@ -330,10 +329,11 @@ const DanosAcumulados = () => {
                      fullWidth
                      value={editingRegistro ? editingRegistro.anio : nuevoRegistro.anio}
                      onChange={(e) => {
+                       const cleanValue = validateNumericInput(e.target.value, 'integer');
                        if (editingRegistro) {
-                         setEditingRegistro({...editingRegistro, anio: parseInt(e.target.value)});
+                         setEditingRegistro({...editingRegistro, anio: parseInt(cleanValue) || 0});
                        } else {
-                         setNuevoRegistro({...nuevoRegistro, anio: parseInt(e.target.value)});
+                         setNuevoRegistro({...nuevoRegistro, anio: parseInt(cleanValue) || 0});
                        }
                      }}
                    />
@@ -366,10 +366,11 @@ const DanosAcumulados = () => {
                      fullWidth
                      value={editingRegistro ? editingRegistro.valor_real : nuevoRegistro.valor_real}
                      onChange={(e) => {
+                       const cleanValue = validateNumericInput(e.target.value, 'integer');
                        if (editingRegistro) {
-                         setEditingRegistro({...editingRegistro, valor_real: parseInt(e.target.value) || 0});
+                         setEditingRegistro({...editingRegistro, valor_real: parseInt(cleanValue) || 0});
                        } else {
-                         setNuevoRegistro({...nuevoRegistro, valor_real: e.target.value});
+                         setNuevoRegistro({...nuevoRegistro, valor_real: cleanValue});
                        }
                      }}
                      helperText="Ingrese el valor en pesos chilenos"
@@ -382,10 +383,11 @@ const DanosAcumulados = () => {
                      fullWidth
                      value={editingRegistro ? editingRegistro.valor_ppto : nuevoRegistro.valor_ppto}
                      onChange={(e) => {
+                       const cleanValue = validateNumericInput(e.target.value, 'integer');
                        if (editingRegistro) {
-                         setEditingRegistro({...editingRegistro, valor_ppto: parseInt(e.target.value) || 0});
+                         setEditingRegistro({...editingRegistro, valor_ppto: parseInt(cleanValue) || 0});
                        } else {
-                         setNuevoRegistro({...nuevoRegistro, valor_ppto: e.target.value});
+                         setNuevoRegistro({...nuevoRegistro, valor_ppto: cleanValue});
                        }
                      }}
                      helperText="Ingrese el valor en pesos chilenos"

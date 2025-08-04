@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Card, CardContent, Grid, Chip, CircularProgress, Alert, FormControl, InputLabel, Select, MenuItem
+  Card, CardContent, Grid, CircularProgress, Alert, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
 import {
   Assessment as AssessmentIcon,
-  DateRange as DateRangeIcon,
   TrendingUp as TrendingUpIcon
 } from '@mui/icons-material';
 import axios from '../api/axios';
@@ -19,7 +18,7 @@ const ReporteDetalladoMetros = () => {
     month: new Date().getMonth() + 1
   });
 
-  const cargarReporte = async () => {
+  const cargarReporte = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -33,11 +32,11 @@ const ReporteDetalladoMetros = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filtros.year, filtros.month]);
 
   useEffect(() => {
     cargarReporte();
-  }, [filtros]);
+  }, [cargarReporte]);
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat('es-CL', {

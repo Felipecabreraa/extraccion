@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Grid, Card, CardContent, Paper,
   CircularProgress, Alert, IconButton, Tooltip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, MenuItem, Select, FormControl, InputLabel,
+  MenuItem, Select, FormControl, InputLabel,
   LinearProgress, Chip
 } from '@mui/material';
 import {
@@ -17,11 +17,9 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import axios from '../api/axios';
-import { useAuth } from '../context/AuthContext';
 import DanosAcumuladosChart from '../components/DanosAcumuladosChart';
 
 export default function DanosMeta() {
-  const { usuario } = useAuth();
   const [metaData, setMetaData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,7 +31,7 @@ export default function DanosMeta() {
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 5 + i);
   const porcentajes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
 
-  const fetchMetaData = async (showLoading = true) => {
+  const fetchMetaData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) {
         setLoading(true);
@@ -58,11 +56,11 @@ export default function DanosMeta() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, [selectedYear, selectedPorcentaje]);
 
   useEffect(() => {
     fetchMetaData();
-  }, [selectedYear, selectedPorcentaje]);
+  }, [fetchMetaData]);
 
   const handleRefresh = () => {
     fetchMetaData(false);

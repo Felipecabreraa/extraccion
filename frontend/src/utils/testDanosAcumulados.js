@@ -232,9 +232,11 @@ export const generarReportePruebas = (resultados) => {
   return reporte;
 };
 
-export default {
+const testUtils = {
   testDanosAcumulados,
   testEndpoint,
   validarEstructuraDatos,
   generarReportePruebas
-}; 
+};
+
+export default testUtils; 

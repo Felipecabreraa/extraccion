@@ -4,7 +4,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   CircularProgress, Alert, IconButton, Tooltip, Button, Dialog,
   DialogTitle, DialogContent, DialogActions, TextField, FormControl,
-  InputLabel, Select, MenuItem, Snackbar, Divider, LinearProgress,
+  InputLabel, Select, MenuItem, Snackbar,
   FormHelperText, InputAdornment, ToggleButton, ToggleButtonGroup
 } from '@mui/material';
 import {
@@ -18,17 +18,18 @@ import {
   LocationOn as LocationIcon,
   ViewModule as ViewModuleIcon,
   CheckCircle as CheckCircleIcon,
-  Warning as WarningIcon,
   Info as InfoIcon,
   Close as CloseIcon,
   ViewList as ViewListIcon,
-  Dashboard as DashboardIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Notifications as NotificationsIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import axios from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import ReporteDetalladoMetros from '../components/ReporteDetalladoMetros';
+import { validateNumericInput } from '../utils/numericValidation';
+import { useAutoRefresh, useEmitUpdate } from '../hooks/useAutoRefresh';
 
 const MetrosSuperficie = () => {
   const { usuario } = useAuth();
@@ -81,10 +82,20 @@ const MetrosSuperficie = () => {
   const [mostrarFiltrosAvanzados, setMostrarFiltrosAvanzados] = useState(false);
   const [vistaActual, setVistaActual] = useState('registros'); // 'registros' o 'reporte'
 
+  // Hook para emitir eventos de actualización
+  const { emitUpdate } = useEmitUpdate();
+
+  // Función helper para asegurar que registros sea siempre un array
+  const getRegistrosSeguros = () => {
+    return Array.isArray(registros) ? registros : [];
+  };
+
   // Cargar datos iniciales
-  const cargarDatosIniciales = useCallback(async () => {
+  const cargarDatosIniciales = useCallback(async (showLoading = false, signal = null) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       // Construir query params para filtros
@@ -97,18 +108,23 @@ const MetrosSuperficie = () => {
       if (filtros.fecha_fin) queryParams.append('fecha_fin', filtros.fecha_fin);
 
       const [zonasRes, registrosRes, estadisticasRes, mesAnteriorRes] = await Promise.all([
-        axios.get('/zonas'),
-        axios.get(`/metros-superficie?${queryParams.toString()}`),
-        axios.get(`/metros-superficie/estadisticas/quincena?year=${filtros.year}&month=${filtros.month}`),
-        axios.get(`/metros-superficie/estadisticas/mes-anterior?year=${filtros.year}&month=${filtros.month}`)
+        axios.get('/zonas', { signal }),
+        axios.get(`/metros-superficie?${queryParams.toString()}`, { signal }),
+        axios.get('/metros-superficie/estadisticas', { signal }),
+        axios.get('/metros-superficie/mes-anterior', { signal })
       ]);
 
       setZonas(zonasRes.data);
-      setRegistros(registrosRes.data.registros || []);
+      // Extraer el array de registros de la respuesta correcta de la API
+      const registrosData = registrosRes.data.registros || [];
+      setRegistros(registrosData);
       setEstadisticas(estadisticasRes.data);
       setMesAnterior(mesAnteriorRes.data);
-
     } catch (err) {
+      if (err.name === 'AbortError') {
+        console.log('Request cancelado');
+        return;
+      }
       console.error('Error cargando datos:', err);
       setError('Error al cargar los datos de metros superficie');
     } finally {
@@ -116,10 +132,14 @@ const MetrosSuperficie = () => {
     }
   }, [filtros]);
 
-  // Función para aplicar filtros automáticamente
-  const aplicarFiltrosAutomatico = useCallback(() => {
-    cargarDatosIniciales();
-  }, [cargarDatosIniciales]);
+  // Usar el hook de auto-refresh
+  const {
+    isRefreshing,
+    lastUpdate,
+    autoRefreshEnabled,
+    manualRefresh,
+    toggleAutoRefresh
+  } = useAutoRefresh(cargarDatosIniciales, 30000, true, [filtros]);
 
   // Función para limpiar filtros
   const limpiarFiltros = () => {
@@ -140,7 +160,7 @@ const MetrosSuperficie = () => {
   };
 
   useEffect(() => {
-    cargarDatosIniciales();
+    cargarDatosIniciales(true);
   }, [cargarDatosIniciales]);
 
   // Cargar sectores cuando se selecciona una zona
@@ -181,7 +201,13 @@ const MetrosSuperficie = () => {
 
   // Manejar cambios en el formulario
   const handleFormChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Validación para campos numéricos
+    if (field === 'pabellones_limpiados') {
+      const cleanValue = validateNumericInput(value, 'integer');
+      setFormData(prev => ({ ...prev, [field]: cleanValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
     
     if (field === 'zona_id') {
       setFormData(prev => ({ ...prev, sector_id: '' }));
@@ -271,7 +297,16 @@ const MetrosSuperficie = () => {
       }
 
       handleCloseModal();
-      cargarDatosIniciales();
+      
+      // Emitir evento de actualización para otras páginas
+      emitUpdate({ 
+        type: 'metros_superficie', 
+        action: editingId ? 'updated' : 'created',
+        id: editingId || 'new'
+      });
+      
+      // Actualizar datos locales
+      manualRefresh();
 
     } catch (err) {
       console.error('❌ Error guardando registro:', err);
@@ -311,9 +346,19 @@ const MetrosSuperficie = () => {
         message: 'Registro eliminado exitosamente',
         severity: 'success'
       });
-      cargarDatosIniciales();
+      
+      // Emitir evento de actualización para otras páginas
+      emitUpdate({ 
+        type: 'metros_superficie', 
+        action: 'deleted',
+        id: id
+      });
+      
+      // Actualizar datos locales
+      manualRefresh();
+      
     } catch (err) {
-      console.error('Error eliminando registro:', err);
+      console.error('❌ Error eliminando registro:', err);
       setSnackbar({
         open: true,
         message: 'Error al eliminar el registro',
@@ -344,14 +389,32 @@ const MetrosSuperficie = () => {
     <Box p={3} sx={{ background: '#fafbfc', minHeight: '100vh' }}>
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box display="flex" alignItems="center" gap={2}>
-          <AssessmentIcon color="primary" />
-          <Typography variant="h4" fontWeight={700} color="primary">
-            Metros Superficie
+        <Box>
+          <Box display="flex" alignItems="center" gap={2}>
+            <AssessmentIcon color="primary" />
+            <Typography variant="h4" fontWeight={700} color="primary">
+              Metros Superficie
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="textSecondary">
+            Última actualización: {lastUpdate.toLocaleTimeString()}
           </Typography>
         </Box>
         
         <Box display="flex" gap={2}>
+          {/* Controles de actualización */}
+          <Tooltip title="Actualizar datos">
+            <IconButton onClick={manualRefresh} disabled={isRefreshing}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip title={autoRefreshEnabled ? 'Desactivar auto-refresh' : 'Activar auto-refresh'}>
+            <IconButton onClick={toggleAutoRefresh} color={autoRefreshEnabled ? 'success' : 'default'}>
+              <NotificationsIcon />
+            </IconButton>
+          </Tooltip>
+
           {/* Toggle para cambiar entre vistas */}
           <ToggleButtonGroup
             value={vistaActual}
@@ -413,7 +476,7 @@ const MetrosSuperficie = () => {
                 {/* Indicador de filtros activos */}
                 {(filtros.search || filtros.zona_id) && (
                   <Chip
-                    label={`${registros.length} registros encontrados`}
+                    label={`${getRegistrosSeguros().length} registros encontrados`}
                     color="primary"
                     size="small"
                     icon={<SearchIcon />}
@@ -573,7 +636,7 @@ const MetrosSuperficie = () => {
                         Total Registros
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
-                        {registros.length} registros
+                        {getRegistrosSeguros().length} registros
                       </Typography>
                     </Box>
                   </Box>
@@ -590,7 +653,7 @@ const MetrosSuperficie = () => {
               </Typography>
 
               {/* Resumen de totales */}
-              {registros.length > 0 && (
+              {getRegistrosSeguros().length > 0 && (
                 <Box mb={2} p={2} bgcolor="#f8f9fa" borderRadius={2}>
                   <Typography variant="subtitle2" fontWeight={600} gutterBottom>
                     📊 Resumen de Registros Filtrados:
@@ -599,7 +662,7 @@ const MetrosSuperficie = () => {
                     <Grid item xs={12} md={3}>
                       <Box textAlign="center">
                         <Typography variant="h6" color="primary" fontWeight={700}>
-                          {registros.filter(r => r.tipo_zona === 'HEMBRA').length}
+                          {getRegistrosSeguros().filter(r => r.tipo_zona === 'HEMBRA').length}
                         </Typography>
                         <Typography variant="body2" color="textSecondary">
                           Registros Hembra
@@ -609,7 +672,7 @@ const MetrosSuperficie = () => {
                     <Grid item xs={12} md={3}>
                       <Box textAlign="center">
                         <Typography variant="h6" color="secondary" fontWeight={700}>
-                          {registros.filter(r => r.tipo_zona === 'MACHO').length}
+                          {getRegistrosSeguros().filter(r => r.tipo_zona === 'MACHO').length}
                         </Typography>
                         <Typography variant="body2" color="textSecondary">
                           Registros Macho
@@ -619,7 +682,7 @@ const MetrosSuperficie = () => {
                     <Grid item xs={12} md={3}>
                       <Box textAlign="center">
                         <Typography variant="h6" color="success.main" fontWeight={700}>
-                          {formatNumber(registros.reduce((sum, r) => sum + r.pabellones_limpiados, 0))}
+                          {formatNumber(getRegistrosSeguros().reduce((sum, r) => sum + r.pabellones_limpiados, 0))}
                         </Typography>
                         <Typography variant="body2" color="textSecondary">
                           Total Pabellones
@@ -629,7 +692,7 @@ const MetrosSuperficie = () => {
                     <Grid item xs={12} md={3}>
                       <Box textAlign="center">
                         <Typography variant="h6" color="info.main" fontWeight={700}>
-                          {formatNumber(registros.reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0))}
+                          {formatNumber(getRegistrosSeguros().reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0))}
                         </Typography>
                         <Typography variant="body2" color="textSecondary">
                           Total m²
@@ -685,7 +748,7 @@ const MetrosSuperficie = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {registros.map((registro) => (
+                      {getRegistrosSeguros().map((registro) => (
                         <TableRow key={registro.id} hover>
                           <TableCell>
                             {new Date(registro.fecha).toLocaleDateString('es-CL')}
@@ -757,7 +820,7 @@ const MetrosSuperficie = () => {
                           🟦 ZONA HEMBRA
                         </Typography>
                         <Box>
-                          {registros
+                          {getRegistrosSeguros()
                             .filter(registro => registro.tipo_zona === 'HEMBRA')
                             .map((registro, index) => (
                               <Box key={registro.id} p={2} mb={1} bgcolor="rgba(25,118,210,0.05)" borderRadius={2}>
@@ -783,7 +846,7 @@ const MetrosSuperficie = () => {
                                 </Grid>
                               </Box>
                             ))}
-                          {registros.filter(registro => registro.tipo_zona === 'HEMBRA').length === 0 && (
+                          {getRegistrosSeguros().filter(registro => registro.tipo_zona === 'HEMBRA').length === 0 && (
                             <Box textAlign="center" py={3}>
                               <Typography variant="body2" color="textSecondary">
                                 No hay registros para zona Hembra
@@ -803,7 +866,7 @@ const MetrosSuperficie = () => {
                           🟪 ZONA MACHO
                         </Typography>
                         <Box>
-                          {registros
+                          {getRegistrosSeguros()
                             .filter(registro => registro.tipo_zona === 'MACHO')
                             .map((registro, index) => (
                               <Box key={registro.id} p={2} mb={1} bgcolor="rgba(156,39,176,0.05)" borderRadius={2}>
@@ -829,7 +892,7 @@ const MetrosSuperficie = () => {
                                 </Grid>
                               </Box>
                             ))}
-                          {registros.filter(registro => registro.tipo_zona === 'MACHO').length === 0 && (
+                          {getRegistrosSeguros().filter(registro => registro.tipo_zona === 'MACHO').length === 0 && (
                             <Box textAlign="center" py={3}>
                               <Typography variant="body2" color="textSecondary">
                                 No hay registros para zona Macho
@@ -852,39 +915,39 @@ const MetrosSuperficie = () => {
                           <Grid item xs={12} md={4}>
                             <Box textAlign="center" p={2} bgcolor="rgba(25,118,210,0.1)" borderRadius={2}>
                               <Typography variant="h5" color="primary" fontWeight={700}>
-                                {formatNumber(registros.filter(r => r.tipo_zona === 'HEMBRA').reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0))}
+                                {formatNumber(getRegistrosSeguros().filter(r => r.tipo_zona === 'HEMBRA').reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0))}
                               </Typography>
                               <Typography variant="body2" color="textSecondary">
                                 Total Hembra (m²)
                               </Typography>
                               <Typography variant="caption" color="textSecondary">
-                                {registros.filter(r => r.tipo_zona === 'HEMBRA').length} registros
+                                {getRegistrosSeguros().filter(r => r.tipo_zona === 'HEMBRA').length} registros
                               </Typography>
                             </Box>
                           </Grid>
                           <Grid item xs={12} md={4}>
                             <Box textAlign="center" p={2} bgcolor="rgba(156,39,176,0.1)" borderRadius={2}>
                               <Typography variant="h5" color="secondary" fontWeight={700}>
-                                {formatNumber(registros.filter(r => r.tipo_zona === 'MACHO').reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0))}
+                                {formatNumber(getRegistrosSeguros().filter(r => r.tipo_zona === 'MACHO').reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0))}
                               </Typography>
                               <Typography variant="body2" color="textSecondary">
                                 Total Macho (m²)
                               </Typography>
                               <Typography variant="caption" color="textSecondary">
-                                {registros.filter(r => r.tipo_zona === 'MACHO').length} registros
+                                {getRegistrosSeguros().filter(r => r.tipo_zona === 'MACHO').length} registros
                               </Typography>
                             </Box>
                           </Grid>
                           <Grid item xs={12} md={4}>
                             <Box textAlign="center" p={2} bgcolor="rgba(76,175,80,0.1)" borderRadius={2}>
                               <Typography variant="h5" color="success.main" fontWeight={700}>
-                                {formatNumber(registros.reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0))}
+                                {formatNumber(getRegistrosSeguros().reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0))}
                               </Typography>
                               <Typography variant="body2" color="textSecondary">
                                 Total General (m²)
                               </Typography>
                               <Typography variant="caption" color="textSecondary">
-                                {registros.length} registros totales
+                                {getRegistrosSeguros().length} registros totales
                               </Typography>
                             </Box>
                           </Grid>
@@ -899,7 +962,7 @@ const MetrosSuperficie = () => {
                             <Grid item xs={12} md={3}>
                               <Box textAlign="center">
                                 <Typography variant="h6" color="info.main" fontWeight={700}>
-                                  {formatNumber(registros.reduce((sum, r) => sum + r.pabellones_limpiados, 0))}
+                                  {formatNumber(getRegistrosSeguros().reduce((sum, r) => sum + r.pabellones_limpiados, 0))}
                                 </Typography>
                                 <Typography variant="caption" color="textSecondary">
                                   Total Pabellones Limpiados
@@ -909,7 +972,10 @@ const MetrosSuperficie = () => {
                             <Grid item xs={12} md={3}>
                               <Box textAlign="center">
                                 <Typography variant="h6" color="warning.main" fontWeight={700}>
-                                  {registros.length > 0 ? formatNumber(registros.reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0) / registros.length) : '0'}
+                                  {(() => {
+                                    const registrosSeguros = getRegistrosSeguros();
+                                    return registrosSeguros.length > 0 ? formatNumber(registrosSeguros.reduce((sum, r) => sum + parseFloat(r.metros_cuadrados), 0) / registrosSeguros.length) : '0';
+                                  })()}
                                 </Typography>
                                 <Typography variant="caption" color="textSecondary">
                                   Promedio m² por Registro
@@ -919,7 +985,10 @@ const MetrosSuperficie = () => {
                             <Grid item xs={12} md={3}>
                               <Box textAlign="center">
                                 <Typography variant="h6" color="primary" fontWeight={700}>
-                                  {registros.length > 0 ? Math.max(...registros.map(r => parseFloat(r.metros_cuadrados))).toLocaleString('es-CL') : '0'}
+                                  {(() => {
+                                    const registrosSeguros = getRegistrosSeguros();
+                                    return registrosSeguros.length > 0 ? Math.max(...registrosSeguros.map(r => parseFloat(r.metros_cuadrados))).toLocaleString('es-CL') : '0';
+                                  })()}
                                 </Typography>
                                 <Typography variant="caption" color="textSecondary">
                                   Máximo m² por Registro
@@ -929,7 +998,10 @@ const MetrosSuperficie = () => {
                             <Grid item xs={12} md={3}>
                               <Box textAlign="center">
                                 <Typography variant="h6" color="secondary" fontWeight={700}>
-                                  {registros.length > 0 ? Math.min(...registros.map(r => parseFloat(r.metros_cuadrados))).toLocaleString('es-CL') : '0'}
+                                  {(() => {
+                                    const registrosSeguros = getRegistrosSeguros();
+                                    return registrosSeguros.length > 0 ? Math.min(...registrosSeguros.map(r => parseFloat(r.metros_cuadrados))).toLocaleString('es-CL') : '0';
+                                  })()}
                                 </Typography>
                                 <Typography variant="caption" color="textSecondary">
                                   Mínimo m² por Registro
@@ -944,7 +1016,7 @@ const MetrosSuperficie = () => {
                 </Grid>
               )}
 
-              {registros.length === 0 && (
+              {(!getRegistrosSeguros() || getRegistrosSeguros().length === 0) && (
                 <Box textAlign="center" py={4}>
                   <Typography variant="body1" color="textSecondary">
                     No hay registros de metros superficie

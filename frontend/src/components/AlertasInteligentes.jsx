@@ -1,25 +1,20 @@
 import React, { useState } from 'react';
 import {
   Box, Card, CardContent, Typography, Chip, IconButton, Collapse,
-  Alert, AlertTitle, List, ListItem, ListItemIcon, ListItemText,
-  Badge, Tooltip, Fade, Zoom
+  Alert, AlertTitle, Badge, Fade, Zoom
 } from '@mui/material';
 import {
-  Warning as WarningIcon,
-  Error as ErrorIcon,
   Info as InfoIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Notifications as NotificationsIcon,
   TrendingUp as TrendingUpIcon,
   LocationOn as LocationIcon,
-  Assessment as AssessmentIcon,
-  Schedule as ScheduleIcon
+  Assessment as AssessmentIcon
 } from '@mui/icons-material';
 
 const AlertasInteligentes = ({ alertas = [], onAlertClick }) => {
   const [expanded, setExpanded] = useState(true);
-  const [selectedAlert, setSelectedAlert] = useState(null);
 
   if (!alertas || alertas.length === 0) {
     return (
@@ -36,32 +31,6 @@ const AlertasInteligentes = ({ alertas = [], onAlertClick }) => {
     );
   }
 
-  const getAlertIcon = (tipo) => {
-    switch (tipo) {
-      case 'error':
-        return <ErrorIcon color="error" />;
-      case 'warning':
-        return <WarningIcon color="warning" />;
-      case 'info':
-        return <InfoIcon color="info" />;
-      default:
-        return <InfoIcon color="primary" />;
-    }
-  };
-
-  const getAlertColor = (tipo) => {
-    switch (tipo) {
-      case 'error':
-        return 'error';
-      case 'warning':
-        return 'warning';
-      case 'info':
-        return 'info';
-      default:
-        return 'primary';
-    }
-  };
-
   const getCategoriaIcon = (categoria) => {
     switch (categoria) {
       case 'tendencia':
@@ -75,21 +44,7 @@ const AlertasInteligentes = ({ alertas = [], onAlertClick }) => {
     }
   };
 
-  const getPrioridadColor = (prioridad) => {
-    switch (prioridad) {
-      case 'alta':
-        return 'error';
-      case 'media':
-        return 'warning';
-      case 'baja':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
-
   const handleAlertClick = (alerta) => {
-    setSelectedAlert(alerta);
     if (onAlertClick) {
       onAlertClick(alerta);
     }

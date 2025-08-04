@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -32,7 +32,7 @@ const TopOperadoresTable = ({ year = 2024, limit = 10 }) => {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchTopOperadores = async (showLoading = true) => {
+  const fetchTopOperadores = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) {
         setLoading(true);
@@ -51,11 +51,11 @@ const TopOperadoresTable = ({ year = 2024, limit = 10 }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [year, limit]);
 
   useEffect(() => {
     fetchTopOperadores();
-  }, [year, limit]);
+  }, [fetchTopOperadores]);
 
   const handleRefresh = () => {
     fetchTopOperadores(false);

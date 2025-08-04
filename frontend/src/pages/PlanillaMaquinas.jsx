@@ -3,6 +3,7 @@ import { Box, Typography, Grid, TextField, MenuItem, Button, Table, TableBody, T
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from '../api/axios';
+import { validateNumericInput } from '../utils/numericValidation';
 
 export default function PlanillaMaquinas({ planillaId }) {
   const [maquinas, setMaquinas] = useState([]);
@@ -36,7 +37,49 @@ export default function PlanillaMaquinas({ planillaId }) {
   };
 
   const handleChange = e => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    // Validación para campos numéricos
+    const numericFields = {
+      'odometro_inicio': 'integer',
+      'odometro_fin': 'integer',
+      'petroleo': 'decimal'
+    };
+    
+    if (numericFields[name]) {
+      let cleanValue = validateNumericInput(value, numericFields[name]);
+      
+      // Validación específica para campos de odómetro (máximo 5 dígitos)
+      if (name === 'odometro_inicio' || name === 'odometro_fin') {
+        // Remover cualquier caracter no numérico
+        const numericOnly = cleanValue.replace(/[^0-9]/g, '');
+        
+        // Limitar a máximo 5 dígitos
+        if (numericOnly.length > 5) {
+          cleanValue = numericOnly.substring(0, 5);
+        } else {
+          cleanValue = numericOnly;
+        }
+      }
+      
+      // Validación específica para campo de petróleo (máximo 3 dígitos)
+      if (name === 'petroleo') {
+        // Remover cualquier caracter no numérico
+        const numericOnly = cleanValue.replace(/[^0-9]/g, '');
+        
+        // Limitar a máximo 3 dígitos
+        if (numericOnly.length > 3) {
+          cleanValue = numericOnly.substring(0, 3);
+        } else {
+          cleanValue = numericOnly;
+        }
+      }
+      
+      setForm({ ...form, [name]: cleanValue });
+    } else {
+      // Para campos no numéricos, mantener comportamiento normal
+      setForm({ ...form, [name]: value });
+    }
   };
 
   const handleSubmit = e => {
@@ -57,7 +100,35 @@ export default function PlanillaMaquinas({ planillaId }) {
   };
 
   const handleEditChange = (field, value) => {
-    setEditData({ ...editData, [field]: value });
+    let cleanValue = value;
+    
+    // Validación específica para campos de odómetro (máximo 5 dígitos)
+    if (field === 'odometro_inicio' || field === 'odometro_fin') {
+      // Remover cualquier caracter no numérico
+      const numericOnly = value.replace(/[^0-9]/g, '');
+      
+      // Limitar a máximo 5 dígitos
+      if (numericOnly.length > 5) {
+        cleanValue = numericOnly.substring(0, 5);
+      } else {
+        cleanValue = numericOnly;
+      }
+    }
+    
+    // Validación específica para campo de petróleo (máximo 3 dígitos)
+    if (field === 'petroleo') {
+      // Remover cualquier caracter no numérico
+      const numericOnly = value.replace(/[^0-9]/g, '');
+      
+      // Limitar a máximo 3 dígitos
+      if (numericOnly.length > 3) {
+        cleanValue = numericOnly.substring(0, 3);
+      } else {
+        cleanValue = numericOnly;
+      }
+    }
+    
+    setEditData({ ...editData, [field]: cleanValue });
   };
 
   const handleEditSave = () => {
@@ -173,9 +244,13 @@ export default function PlanillaMaquinas({ planillaId }) {
               onChange={handleChange}
               fullWidth
               required
-              helperText="Ingrese el odómetro de inicio."
+              helperText="Ingrese el odómetro de inicio (máximo 5 dígitos)."
               InputLabelProps={{ shrink: true }}
-              inputProps={{ min: 0 }}
+              inputProps={{ 
+                min: 0,
+                max: 99999,
+                maxLength: 5
+              }}
             />
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -187,9 +262,13 @@ export default function PlanillaMaquinas({ planillaId }) {
               onChange={handleChange}
               fullWidth
               required
-              helperText="Ingrese el odómetro de fin."
+              helperText="Ingrese el odómetro de fin (máximo 5 dígitos)."
               InputLabelProps={{ shrink: true }}
-              inputProps={{ min: 0 }}
+              inputProps={{ 
+                min: 0,
+                max: 99999,
+                maxLength: 5
+              }}
             />
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -201,9 +280,13 @@ export default function PlanillaMaquinas({ planillaId }) {
               onChange={handleChange}
               fullWidth
               required
-              helperText="Ingrese los litros de petróleo consumidos."
+              helperText="Ingrese los litros de petróleo consumidos (máximo 3 dígitos)."
               InputLabelProps={{ shrink: true }}
-              inputProps={{ min: 0, step: 'any' }}
+              inputProps={{ 
+                min: 0,
+                max: 999,
+                maxLength: 3
+              }}
             />
           </Grid>
         </Grid>
@@ -252,27 +335,48 @@ export default function PlanillaMaquinas({ planillaId }) {
                 <TableCell>
                   {editIdx === idx ? (
                     <TextField
+                      type="number"
                       value={editData.odometro_inicio}
                       onChange={e => handleEditChange('odometro_inicio', e.target.value)}
                       size="small"
+                      inputProps={{ 
+                        min: 0,
+                        max: 99999,
+                        maxLength: 5
+                      }}
+                      helperText="Máx. 5 dígitos"
                     />
                   ) : r.odometro_inicio}
                 </TableCell>
                 <TableCell>
                   {editIdx === idx ? (
                     <TextField
+                      type="number"
                       value={editData.odometro_fin}
                       onChange={e => handleEditChange('odometro_fin', e.target.value)}
                       size="small"
+                      inputProps={{ 
+                        min: 0,
+                        max: 99999,
+                        maxLength: 5
+                      }}
+                      helperText="Máx. 5 dígitos"
                     />
                   ) : r.odometro_fin}
                 </TableCell>
                 <TableCell>
                   {editIdx === idx ? (
                     <TextField
+                      type="number"
                       value={editData.petroleo}
                       onChange={e => handleEditChange('petroleo', e.target.value)}
                       size="small"
+                      inputProps={{ 
+                        min: 0,
+                        max: 999,
+                        maxLength: 3
+                      }}
+                      helperText="Máx. 3 dígitos"
                     />
                   ) : r.petroleo}
                 </TableCell>

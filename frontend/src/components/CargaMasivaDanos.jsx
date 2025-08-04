@@ -19,7 +19,7 @@ import {
   Chip,
   CircularProgress
 } from '@mui/material';
-import { Upload, CheckCircle, Error } from '@mui/icons-material';
+import { Upload, CheckCircle } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
 

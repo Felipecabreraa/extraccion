@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import {
   Box, Card, CardContent, Typography, Grid, Chip, LinearProgress,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Paper, Tabs, Tab, Fade, Zoom, Tooltip
+  Paper, Tabs, Tab, Fade, Zoom
 } from '@mui/material';
 import {
-  TrendingUp as TrendingUpIcon,
   Analytics as AnalyticsIcon,
   Timeline as TimelineIcon,
   Assessment as AssessmentIcon,

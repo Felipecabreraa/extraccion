@@ -13,6 +13,7 @@ export const ROUTES = {
   DANOS_ACUMULADOS: '/danos-acumulados',
   DANOS_POR_OPERADOR: '/danos-por-operador',
   DANOS_META: '/danos-meta',
+  TOP_SECTORES: '/top-sectores',
   PLANILLAS: '/planillas',
   USUARIOS: '/usuarios',
   ZONAS: '/zonas',
@@ -75,6 +76,12 @@ export const NAV_ITEMS = [
     label: 'Metas de Daños', 
     path: ROUTES.DANOS_META, 
     icon: 'TargetIcon',
+    roles: ['administrador', 'supervisor']
+  },
+  { 
+    label: 'Top Sectores', 
+    path: ROUTES.TOP_SECTORES, 
+    icon: 'BusinessIcon',
     roles: ['administrador', 'supervisor']
   },
   { 

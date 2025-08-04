@@ -150,5 +150,4 @@ nginx/local.conf
 
 # Archivos de Docker
 Dockerfile.local
-docker-compose.override.yml 
-.vercel
+docker-compose.override.yml

@@ -74,15 +74,10 @@ async function deployProduction() {
     
     // El frontend ya está configurado para producción por defecto
     
-    console.log('\n📋 PASO 5: Desplegando frontend a Vercel (producción)...');
-    
-    // Desplegar a Vercel (producción)
-    runCommand('npx vercel --prod');
-    
     console.log('\n✅ ¡Despliegue de PRODUCCIÓN completado exitosamente!');
     console.log('\n🌐 URLs de Producción:');
     console.log('   - Backend: https://backend-production-6fb4.up.railway.app');
-    console.log('   - Frontend: [URL del deploy de Vercel]');
+    console.log('   - Frontend: [Configurar nuevo despliegue]');
     
   } catch (error) {
     console.error('\n❌ Error en el despliegue de producción:', error.message);

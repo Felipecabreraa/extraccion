@@ -34,11 +34,9 @@ const app = express();
 // Middleware de logging
 app.use(logger.request);
 
-// CORS configurado para Vercel + Railway
+// CORS configurado para desarrollo y producción
 app.use(cors({
   origin: [
-    'https://frontend-1m7t9y5hl-felipe-lagos-projects-f57024eb.vercel.app',
-    'https://frontend-10b2y95zg-felipe-lagos-projects-f57024eb.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001'
   ],

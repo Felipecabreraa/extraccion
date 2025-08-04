@@ -47,7 +47,7 @@ export default function DashboardCharts({ metrics }) {
         },
         {
           label: 'm² Procesados',
-          data: metrics.charts?.tendenciasMensuales?.map(item => item.mt2) || [],
+          data: metrics.charts?.tendenciasMensuales?.map(item => item.mts2) || [],
           borderColor: '#667eea',
           backgroundColor: 'rgba(102, 126, 234, 0.1)',
           tension: 0.4,
@@ -60,7 +60,7 @@ export default function DashboardCharts({ metrics }) {
       labels: metrics.charts?.rendimientoPorSector?.map(item => item.nombre) || [],
       datasets: [{
         label: 'm² Procesados',
-        data: metrics.charts?.rendimientoPorSector?.map(item => item.mt2) || [],
+        data: metrics.charts?.rendimientoPorSector?.map(item => item.mts2) || [],
         backgroundColor: [
           '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
           '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
