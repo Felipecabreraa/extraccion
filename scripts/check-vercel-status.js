@@ -7,10 +7,10 @@ console.log('🔍 Verificando estado del frontend en Vercel...');
 
 // URLs de prueba para el frontend
 const testUrls = [
-  'https://frontend-puce-eta-70-git-test.vercel.app',
-  'https://frontend-puce-eta-70-git-test.vercel.app/',
-  'https://frontend-puce-eta-70-git-test.vercel.app/login',
-  'https://frontend-puce-eta-70-git-test.vercel.app/dashboard'
+  'https://trn-extraccion-test-frontend.vercel.app',
+  'https://trn-extraccion-test-frontend.vercel.app/',
+  'https://trn-extraccion-test-frontend.vercel.app/login',
+  'https://trn-extraccion-test-frontend.vercel.app/dashboard'
 ];
 
 async function checkUrl(url) {
@@ -114,7 +114,7 @@ checkAllUrls().then(() => {
   console.log('4. Si hay problemas, revisar configuración de Vercel');
   
   console.log('\n📊 URLs IMPORTANTES:');
-  console.log('Frontend: https://frontend-puce-eta-70-git-test.vercel.app');
+  console.log('Frontend: https://trn-extraccion-test-frontend.vercel.app');
   console.log('Backend: https://trn-extraccion-test-production.up.railway.app');
   console.log('API Health: https://trn-extraccion-test-production.up.railway.app/api/health');
 }); 
