@@ -1,9 +1,24 @@
 import axios from 'axios';
 
-// Configuración de axios para desarrollo y producción
-const baseURL = process.env.NODE_ENV === 'production'
-  ? process.env.REACT_APP_API_URL || 'https://trn-extraccion-production.up.railway.app/api'  // URL de Railway
-  : process.env.REACT_APP_API_URL || 'https://trn-extraccion-test.up.railway.app/api';  // URL para ambiente de pruebas público
+// Configuración de axios por ambiente
+let baseURL;
+const nodeEnv = process.env.NODE_ENV || 'development';
+
+switch (nodeEnv) {
+  case 'production':
+    // En producción, usar Railway Test Production (servidor activo)
+    baseURL = process.env.REACT_APP_API_URL || 'https://trn-extraccion-test-production.up.railway.app/api';
+    break;
+  case 'test':
+    // En pruebas, usar Railway Test Production
+    baseURL = process.env.REACT_APP_API_URL || 'https://trn-extraccion-test-production.up.railway.app/api';
+    break;
+  case 'development':
+  default:
+    // En desarrollo, usar Railway Test Production para pruebas
+    baseURL = process.env.REACT_APP_API_URL || 'https://trn-extraccion-test-production.up.railway.app/api';
+    break;
+}
 
 const api = axios.create({
   baseURL,

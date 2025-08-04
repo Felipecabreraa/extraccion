@@ -3,12 +3,20 @@
   "version": "1.0.0",
   "description": "Sistema de Extracción - Monorepo",
   "scripts": {
-    "build": "cd frontend-test-publico && npm install && npm run build",
-    "start": "cd frontend-test-publico && npm start",
-    "test": "cd frontend-test-publico && npm test"
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm start",
+    "test": "cd frontend && npm test",
+    "env:test": "node scripts/switch-env.js test",
+    "env:dev": "node scripts/switch-env.js development",
+    "env:prod": "node scripts/switch-env.js production",
+    "env:verify": "node scripts/verify-all-environments.js",
+    "env:test-flow": "node scripts/test-environment-flow.js",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\""
   },
   "workspaces": [
-    "frontend-test-publico"
+    "frontend"
   ],
   "private": true
 }
