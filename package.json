@@ -1,77 +1,14 @@
 {
-  "name": "backend",
+  "name": "extraccion-monorepo",
   "version": "1.0.0",
-  "main": "src/app.js",
+  "description": "Sistema de Extracción - Monorepo",
   "scripts": {
-    "test": "node run-all-tests.js",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --watchAll=false",
-    "dev": "nodemon src/app.js",
-    "start": "node src/app.js",
-    "build": "exit 0",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
-    "test:backend": "node test-sistema-completo.js",
-    "test:frontend": "node test-frontend-completo.js",
-    "test:setup": "node setup-test-environment.js",
-    "test:quick": "node test-sistema-completo.js --quick",
-    "env:dev": "node scripts/switch-to-development.js",
-    "env:test": "node scripts/switch-to-test.js",
-    "env:prod": "node scripts/switch-to-production.js",
-    "git:env": "node scripts/git-switch-environments.js",
-    "git:prod": "node scripts/git-switch-environments.js production",
-    "git:dev": "node scripts/git-switch-environments.js develop",
-    "git:test": "node scripts/git-switch-environments.js test"
+    "build": "cd frontend-test-publico && npm install && npm run build",
+    "start": "cd frontend-test-publico && npm start",
+    "test": "cd frontend-test-publico && npm test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "bcryptjs": "^3.0.2",
-    "compression": "^1.7.4",
-    "cors": "^2.8.5",
-    "csv-parser": "^3.2.0",
-    "dotenv": "^17.0.1",
-    "express": "^4.18.2",
-    "express-rate-limit": "^6.7.0",
-    "helmet": "^7.0.0",
-    "joi": "^17.9.0",
-    "jsonwebtoken": "^9.0.2",
-    "multer": "^2.0.1",
-    "mysql2": "^3.14.3",
-    "xlsx": "^0.18.5"
-  },
-  "devDependencies": {
-    "axios": "^1.11.0",
-    "eslint": "^8.57.1",
-    "eslint-config-standard": "^17.1.0",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-n": "^16.6.2",
-    "eslint-plugin-promise": "^6.6.0",
-    "jest": "^29.7.0",
-    "nodemon": "^3.1.10",
-    "puppeteer": "^24.15.0",
-    "sequelize": "^6.37.7",
-    "sequelize-cli": "^6.6.3",
-    "supertest": "^6.3.4"
-  },
-  "description": "",
-  "engines": {
-    "node": "22.x"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/app.js",
-      "!src/test/**"
-    ],
-    "coverageDirectory": "coverage",
-    "coverageReporters": [
-      "text",
-      "lcov",
-      "html"
-    ]
-  }
+  "workspaces": [
+    "frontend-test-publico"
+  ],
+  "private": true
 }

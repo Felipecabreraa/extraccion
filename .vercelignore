@@ -1,10 +1,6 @@
-# Archivos que no se suben a Vercel
-node_modules/
-.env.local
-.env.development
-.env.test
-.env.production
-*.log
-.DS_Store
-coverage/
-dist/
+# Excluir todo excepto frontend-test-publico
+*
+!frontend-test-publico/
+!frontend-test-publico/**
+!package.json
+!vercel.json
