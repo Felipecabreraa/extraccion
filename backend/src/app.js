@@ -34,13 +34,12 @@ const app = express();
 // Middleware de logging
 app.use(logger.request);
 
-// Configuración de CORS - SOLUCIÓN TEMPORAL
-const corsOrigin = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',')
-  : ['https://extracciontrn.vercel.app', 'http://localhost:3000', 'http://localhost:3002'];
+// Configuración de CORS - SOLUCIÓN FORZADA
 app.use(cors({
-  origin: corsOrigin,
-  credentials: true
+  origin: ['https://extracciontrn.vercel.app', 'http://localhost:3000', 'http://localhost:3002'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept']
 }));
 
 // Configuración de seguridad
