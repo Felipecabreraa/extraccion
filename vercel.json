@@ -5,7 +5,9 @@
       "src": "frontend-test-publico/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build"
+        "distDir": "build",
+        "installCommand": "npm install",
+        "buildCommand": "npm run build"
       }
     }
   ],
@@ -14,5 +16,10 @@
       "src": "/(.*)",
       "dest": "/frontend-test-publico/$1"
     }
-  ]
+  ],
+  "env": {
+    "REACT_APP_API_URL": "https://trn-extraccion-test-production.up.railway.app/api",
+    "REACT_APP_ENVIRONMENT": "test",
+    "REACT_APP_APP_NAME": "EXTRACCION TEST"
+  }
 }
