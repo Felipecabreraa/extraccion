@@ -1,0 +1,5 @@
+[33mc97d9fc[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtest[m[33m, [m[1;31morigin/test[m[33m)[m Fix: Configurar Railway para ambiente de pruebas
+[33m38a1c1c[m Fix: Configurar ambiente de pruebas público y solucionar deployment 404
+[33mee8f9d9[m Configurar ambiente de pruebas - Backend Railway Test, Frontend Vercel Test
+[33md5ed656[m[33m ([m[1;32mdevelop[m[33m)[m feat: agregar scripts de despliegue híbrido
+[33m5b1cefc[m feat: actualizar configuración de bases de datos
