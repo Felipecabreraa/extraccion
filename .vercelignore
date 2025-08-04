@@ -1,0 +1,6 @@
+# Excluir todo excepto frontend-test-publico
+*
+!frontend-test-publico/
+!frontend-test-publico/**
+!package.json
+!vercel.json

@@ -34,12 +34,36 @@ const app = express();
 // Middleware de logging
 app.use(logger.request);
 
-// Configuración de CORS - SOLUCIÓN DEFINITIVA
+// Configuración de CORS por ambiente
+let corsOrigin;
+const nodeEnv = process.env.NODE_ENV || 'development';
+
+switch (nodeEnv) {
+  case 'development':
+    // En desarrollo, permitir cualquier origen
+    corsOrigin = true;
+    break;
+  case 'test':
+    // En pruebas, permitir orígenes específicos de pruebas
+    corsOrigin = process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',')
+      : ['http://localhost:3000', 'http://localhost:3002', 'https://trn-extraccion-production.up.railway.app'];
+    break;
+  case 'production':
+    // En producción, solo orígenes específicos de producción
+    corsOrigin = process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',')
+      : ['https://trn-extraccion-production.up.railway.app'];
+    break;
+  default:
+    corsOrigin = true;
+}
+
 app.use(cors({
-  origin: true, // Permite todos los orígenes temporalmente
+  origin: corsOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Configuración de seguridad

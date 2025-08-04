@@ -2,32 +2,22 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/src/app.js",
-      "use": "@vercel/node",
-      "config": {
-        "nodeVersion": "22.x"
-      }
-    },
-    {
-      "src": "frontend/package.json",
+      "src": "frontend-test-publico/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build",
-        "nodeVersion": "22.x"
+        "distDir": "build"
       }
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "backend/src/app.js"
-    },
-    {
       "src": "/(.*)",
-      "dest": "frontend/$1"
+      "dest": "/frontend-test-publico/$1"
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "REACT_APP_API_URL": "https://trn-extraccion-test-production.up.railway.app/api",
+    "REACT_APP_ENVIRONMENT": "test",
+    "REACT_APP_APP_NAME": "EXTRACCION TEST"
   }
-} 
+}

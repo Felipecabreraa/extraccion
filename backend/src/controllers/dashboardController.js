@@ -68,6 +68,20 @@ let metricsCache = null;
 let cacheTimestamp = null;
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutos (aumentado)
 
+// Función helper para mapear valores de origen a valores reales en la BD
+const mapOrigenToSource = (origen) => {
+  if (origen === 'historico') {
+    return 'historico_2025';
+  } else if (origen === 'sistema') {
+    return 'sistema';
+  } else if (origen === 'todos') {
+    return null; // No aplicar filtro
+  } else if (origen) {
+    return origen; // Usar el valor tal como viene
+  }
+  return null;
+};
+
 exports.getDashboardMetrics = async (req, res) => {
   try {
     console.log('Iniciando obtención de métricas del dashboard...');
@@ -101,12 +115,18 @@ exports.getDashboardMetrics = async (req, res) => {
     let whereClause = 'WHERE YEAR(fechaOrdenServicio) = ?';
     let params = [currentYear];
     
-    if (origen) {
-      whereClause += ' AND source = ?';
-      params.push(origen);
+    // Mapear valores de origen a los valores reales en la base de datos
+    const sourceValue = mapOrigenToSource(origen);
+    
+    if (sourceValue) {
+      whereClause += ' AND source COLLATE utf8mb4_unicode_ci = ?';
+      params.push(sourceValue);
     }
     
     // 1. Métricas básicas desde la vista unificada (incluyendo mts2) - CORREGIDO
+    console.log('🔍 Ejecutando consulta principal con whereClause:', whereClause);
+    console.log('🔍 Params:', params);
+    
     const [totalPlanillasResult] = await sequelize.query(`
       SELECT 
         COUNT(DISTINCT idOrdenServicio) as total,
@@ -114,12 +134,14 @@ exports.getDashboardMetrics = async (req, res) => {
         COALESCE(SUM(cantLimpiar), 0) as total_pabellones_limpiados,
         COALESCE(SUM(mts2), 0) as total_mts2,
         COALESCE(SUM(cantidadDano), 0) as total_danos
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
     `, { 
       replacements: params,
       timeout: queryTimeout 
     });
+    
+    console.log('✅ Resultado consulta principal:', totalPlanillasResult[0]);
     
     // 1.1. Pabellones por planilla única (CORREGIDO)
     const [pabellonesPorPlanillaResult] = await sequelize.query(`
@@ -129,7 +151,7 @@ exports.getDashboardMetrics = async (req, res) => {
         SELECT 
           idOrdenServicio,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
+        FROM vw_ordenes_unificada_completa
         ${whereClause}
         GROUP BY idOrdenServicio
       ) as planillas_unicas
@@ -140,11 +162,11 @@ exports.getDashboardMetrics = async (req, res) => {
     
     const totalPlanillas = totalPlanillasResult[0].total || 0;
     
-    // Como la vista unificada no tiene estados, usamos lógica basada en fechas - CORREGIDO
+    // Calcular estados basándose en fechas y origen de datos
     // Planillas activas: las que tienen fechaFinOrdenServicio NULL o igual a fechaOrdenServicio
     const [planillasActivasResult] = await sequelize.query(`
       SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       AND (fechaFinOrdenServicio IS NULL OR fechaFinOrdenServicio = fechaOrdenServicio)
     `, { 
@@ -155,7 +177,7 @@ exports.getDashboardMetrics = async (req, res) => {
     // Planillas completadas: las que tienen fechaFinOrdenServicio diferente a fechaOrdenServicio
     const [planillasCompletadasResult] = await sequelize.query(`
       SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       AND fechaFinOrdenServicio IS NOT NULL 
       AND fechaFinOrdenServicio != fechaOrdenServicio
@@ -166,8 +188,66 @@ exports.getDashboardMetrics = async (req, res) => {
     
     const planillasActivas = planillasActivasResult[0].cantidad || 0;
     const planillasCompletadas = planillasCompletadasResult[0].cantidad || 0;
-    const planillasPendientes = 0; // No hay información de pendientes en la vista
-    const planillasCanceladas = 0; // No hay información de canceladas en la vista
+    
+    // Obtener planillas pendientes y canceladas desde la vista unificada
+    let planillasPendientes = 0;
+    let planillasCanceladas = 0;
+    
+    // Obtener planillas pendientes y canceladas del sistema actual
+    // Siempre obtener datos del sistema actual para el dashboard principal
+    try {
+      // Planillas pendientes: del sistema actual con fechaFinOrdenServicio NULL
+      const [planillasPendientesResult] = await sequelize.query(`
+        SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
+        FROM vw_ordenes_unificada_completa
+        WHERE source = 'sistema_actual'
+        AND fechaFinOrdenServicio IS NULL
+      `, { timeout: queryTimeout });
+      
+      // Planillas canceladas: del sistema actual con fechaFinOrdenServicio igual a fechaOrdenServicio
+      const [planillasCanceladasResult] = await sequelize.query(`
+        SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
+        FROM vw_ordenes_unificada_completa
+        WHERE source = 'sistema_actual'
+        AND fechaFinOrdenServicio IS NOT NULL
+        AND fechaFinOrdenServicio = fechaOrdenServicio
+      `, { timeout: queryTimeout });
+        
+        planillasPendientes = planillasPendientesResult[0].cantidad || 0;
+        planillasCanceladas = planillasCanceladasResult[0].cantidad || 0;
+        
+        console.log('📊 Planillas del sistema actual (desde vista unificada):', {
+          pendientes: planillasPendientes,
+          canceladas: planillasCanceladas,
+          activas: planillasActivas,
+          completadas: planillasCompletadas
+        });
+        
+        // Debug: Verificar datos en la vista unificada
+        const [debugResult] = await sequelize.query(`
+          SELECT 
+            source,
+            COUNT(DISTINCT idOrdenServicio) as total,
+            COUNT(DISTINCT CASE WHEN fechaFinOrdenServicio IS NULL THEN idOrdenServicio END) as sin_fecha_fin,
+            COUNT(DISTINCT CASE WHEN fechaFinOrdenServicio IS NOT NULL THEN idOrdenServicio END) as con_fecha_fin
+          FROM vw_ordenes_unificada_completa
+          GROUP BY source
+        `, { timeout: queryTimeout });
+        
+        console.log('🔍 Debug - Datos en vista unificada:', debugResult);
+        
+        // Debug adicional: Verificar consulta específica de planillas pendientes
+        const [debugPendientes] = await sequelize.query(`
+          SELECT idOrdenServicio, fechaFinOrdenServicio
+          FROM vw_ordenes_unificada_completa
+          WHERE source = 'sistema_actual'
+          AND fechaFinOrdenServicio IS NULL
+        `, { timeout: queryTimeout });
+        
+        console.log('🔍 Debug - Planillas pendientes encontradas:', debugPendientes);
+      } catch (error) {
+        console.error('❌ Error obteniendo planillas del sistema actual:', error);
+      }
     
     // 2. Métricas del mes actual (incluyendo mts2) - CORREGIDO
     const [metricasMesResult] = await sequelize.query(`
@@ -175,11 +255,11 @@ exports.getDashboardMetrics = async (req, res) => {
         COUNT(DISTINCT idOrdenServicio) as planillas_mes,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_mes,
         COALESCE(SUM(mts2), 0) as mts2_mes
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
-      ${origen ? 'AND source = ?' : ''}
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
     `, { 
-      replacements: origen ? [currentYear, currentMonth, origen] : [currentYear, currentMonth],
+      replacements: sourceValue ? [currentYear, currentMonth, sourceValue] : [currentYear, currentMonth],
       timeout: queryTimeout 
     });
     
@@ -191,13 +271,13 @@ exports.getDashboardMetrics = async (req, res) => {
         SELECT 
           idOrdenServicio,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
+        FROM vw_ordenes_unificada_completa
         WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
-        ${origen ? 'AND source = ?' : ''}
+        ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
         GROUP BY idOrdenServicio
       ) as planillas_mes_unicas
     `, { 
-      replacements: origen ? [currentYear, currentMonth, origen] : [currentYear, currentMonth],
+      replacements: sourceValue ? [currentYear, currentMonth, sourceValue] : [currentYear, currentMonth],
       timeout: queryTimeout 
     });
     
@@ -207,11 +287,11 @@ exports.getDashboardMetrics = async (req, res) => {
         COUNT(DISTINCT idOrdenServicio) as planillas_mes_anterior,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_mes_anterior,
         COALESCE(SUM(mts2), 0) as mts2_mes_anterior
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
-      ${origen ? 'AND source = ?' : ''}
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
     `, { 
-      replacements: origen ? [previousYear, previousMonth, origen] : [previousYear, previousMonth],
+      replacements: sourceValue ? [previousYear, previousMonth, sourceValue] : [previousYear, previousMonth],
       timeout: queryTimeout 
     });
     
@@ -223,34 +303,42 @@ exports.getDashboardMetrics = async (req, res) => {
         SELECT 
           idOrdenServicio,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
+        FROM vw_ordenes_unificada_completa
         WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
-        ${origen ? 'AND source = ?' : ''}
+        ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
         GROUP BY idOrdenServicio
       ) as planillas_mes_anterior_unicas
     `, { 
-      replacements: origen ? [previousYear, previousMonth, origen] : [previousYear, previousMonth],
+      replacements: sourceValue ? [previousYear, previousMonth, sourceValue] : [previousYear, previousMonth],
       timeout: queryTimeout 
     });
     
     // 4. Datos para gráficos de tendencias mensuales (últimos 6 meses) - incluyendo mts2 - CORREGIDO
+    console.log('🔍 Ejecutando consulta de tendencias mensuales...');
+    console.log('🔍 currentYear:', currentYear);
+    console.log('🔍 sourceValue:', sourceValue);
+    
     const [tendenciasMensualesResult] = await sequelize.query(`
       SELECT 
         MONTH(fechaOrdenServicio) as mes,
         COUNT(DISTINCT idOrdenServicio) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones,
         COALESCE(SUM(mts2), 0) as mts2
-      FROM vw_ordenes_2025_actual
-      WHERE fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-      ${origen ? 'AND source = ?' : ''}
+      FROM vw_ordenes_unificada_completa
+      WHERE YEAR(fechaOrdenServicio) = ?
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
       GROUP BY MONTH(fechaOrdenServicio)
       ORDER BY mes ASC
     `, { 
-      replacements: origen ? [origen] : [],
-      timeout: queryTimeout 
+      replacements: sourceValue ? [currentYear, sourceValue] : [currentYear],
+      timeout: 8000 
     });
     
+    console.log('📊 Resultado tendencias mensuales:', tendenciasMensualesResult);
+    
     // 4.1. Pabellones por mes por planilla única (CORREGIDO)
+    console.log('🔍 Ejecutando consulta de pabellones únicos...');
+    
     const [tendenciasMensualesUnicosResult] = await sequelize.query(`
       SELECT 
         MONTH(fechaOrdenServicio) as mes,
@@ -260,17 +348,19 @@ exports.getDashboardMetrics = async (req, res) => {
           idOrdenServicio,
           fechaOrdenServicio,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
-        WHERE fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-        ${origen ? 'AND source = ?' : ''}
+        FROM vw_ordenes_unificada_completa
+        WHERE YEAR(fechaOrdenServicio) = ?
+        ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
         GROUP BY idOrdenServicio, fechaOrdenServicio
       ) as planillas_mensuales_unicas
       GROUP BY MONTH(fechaOrdenServicio)
       ORDER BY mes ASC
     `, { 
-      replacements: origen ? [origen] : [],
-      timeout: queryTimeout 
+      replacements: sourceValue ? [currentYear, sourceValue] : [currentYear],
+      timeout: 8000 
     });
+    
+    console.log('📈 Resultado pabellones únicos:', tendenciasMensualesUnicosResult);
     
     // 5. Datos para gráficos de rendimiento por sector (top 5) - incluyendo mts2 - CORREGIDO
     const [rendimientoSectorResult] = await sequelize.query(`
@@ -279,7 +369,7 @@ exports.getDashboardMetrics = async (req, res) => {
         COUNT(DISTINCT idOrdenServicio) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total,
         COALESCE(SUM(mts2), 0) as mts2_total
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreSector
       ORDER BY pabellones_total DESC
@@ -299,7 +389,7 @@ exports.getDashboardMetrics = async (req, res) => {
           idOrdenServicio,
           nombreSector,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
+        FROM vw_ordenes_unificada_completa
         ${whereClause}
         GROUP BY idOrdenServicio, nombreSector
       ) as planillas_sector_unicas
@@ -326,11 +416,29 @@ exports.getDashboardMetrics = async (req, res) => {
       Pabellon.count({ timeout: queryTimeout })
     ]);
 
-    console.log('Métricas obtenidas desde vista unificada vw_ordenes_2025_actual');
+    // 7. NUEVO: Calcular operadores activos (operadores que han trabajado en el último mes)
+    const [operadoresActivosResult] = await sequelize.query(`
+      SELECT COUNT(DISTINCT nombreOperador) as operadores_activos
+      FROM vw_ordenes_unificada_completa
+      WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
+      AND nombreOperador IS NOT NULL AND nombreOperador != 'Sin operador'
+    `, { 
+      replacements: sourceValue ? [currentYear, currentMonth, sourceValue] : [currentYear, currentMonth],
+      timeout: queryTimeout 
+    });
 
-    // Cálculo de eficiencia real
+    const operadoresActivos = operadoresActivosResult[0].operadores_activos || 0;
+
+    console.log('Métricas obtenidas desde vista unificada vw_ordenes_unificada_completa');
+
+    // Cálculo de eficiencia real mejorado
     const eficienciaActual = totalPlanillas > 0 ? 
       Math.round((planillasCompletadas / totalPlanillas) * 100) : 0;
+
+    // Cálculo de eficiencia promedio (basado en pabellones limpiados vs total)
+    const eficienciaPromedio = totalPlanillasResult[0].total_pabellones > 0 ? 
+      Math.round((totalPlanillasResult[0].total_pabellones_limpiados / totalPlanillasResult[0].total_pabellones) * 100) : 0;
 
     // Cálculo de variaciones (incluyendo mts2) - CORREGIDO para pabellones únicos
     const planillasMes = metricasMesResult[0].planillas_mes || 0;
@@ -375,15 +483,24 @@ exports.getDashboardMetrics = async (req, res) => {
     }
 
     // Formatear datos de gráficos (incluyendo mts2) - CORREGIDO para pabellones únicos
+    console.log('🔍 Formateando tendencias mensuales...');
+    console.log('🔍 tendenciasMensualesResult.length:', tendenciasMensualesResult.length);
+    console.log('🔍 tendenciasMensualesUnicosResult.length:', tendenciasMensualesUnicosResult.length);
+    
     const tendenciasMensuales = tendenciasMensualesResult.map((item, index) => {
       const pabellonesUnicos = tendenciasMensualesUnicosResult[index]?.pabellones_unicos || 0;
-      return {
+      const tendencia = {
         mes: new Date(currentYear, item.mes - 1).toLocaleDateString('es-ES', { month: 'short' }),
         planillas: parseInt(item.planillas),
         pabellones: parseInt(pabellonesUnicos), // CORREGIDO: pabellones únicos
         mts2: parseInt(item.mts2)
       };
+      console.log(`🔍 Tendencia ${index}:`, tendencia);
+      return tendencia;
     });
+    
+    console.log('🎯 Tendencias formateadas finales:', tendenciasMensuales);
+    console.log('📊 Total tendencias formateadas:', tendenciasMensuales.length);
 
     const rendimientoPorSector = rendimientoSectorResult.map((item, index) => {
       const pabellonesUnicos = rendimientoSectorUnicosResult[index]?.pabellones_total_unicos || 0;
@@ -409,6 +526,9 @@ exports.getDashboardMetrics = async (req, res) => {
       totalPabellones: pabellonesPorPlanillaResult[0].total_pabellones_unicos, // CORREGIDO: pabellones únicos
       totalMts2: totalPlanillasResult[0].total_mts2,
       
+      // NUEVO: Operadores activos (operadores que han trabajado en el último mes)
+      operadoresActivos,
+      
       // Métricas del mes (reales) - incluyendo mts2 - CORREGIDO para pabellones únicos
       planillasMes,
       pabellonesMes, // Ya está corregido arriba
@@ -422,8 +542,9 @@ exports.getDashboardMetrics = async (req, res) => {
       variacionPabellones: parseFloat(variacionPabellones),
       variacionMts2: parseFloat(variacionMts2),
       
-      // Eficiencia
+      // Eficiencia mejorada
       eficienciaGlobal: eficienciaActual,
+      eficienciaPromedio, // NUEVO: Eficiencia basada en pabellones limpiados
       
       // Daños (mantener por ahora)
       danosMes: 3,
@@ -451,7 +572,7 @@ exports.getDashboardMetrics = async (req, res) => {
     metricsCache = response;
     cacheTimestamp = Date.now();
 
-    console.log('Respuesta preparada con datos reales desde vista unificada vw_ordenes_2025_actual');
+    console.log('Respuesta preparada con datos reales desde vista unificada vw_ordenes_unificada_completa');
     res.json(response);
 
   } catch (error) {
@@ -476,6 +597,7 @@ exports.getDashboardMetrics = async (req, res) => {
       totalBarredores: 0,
       totalPabellones: 0,
       totalMts2: 0,
+      operadoresActivos: 0, // NUEVO
       planillasMes: 0,
       pabellonesMes: 0,
       mts2Mes: 0,
@@ -486,6 +608,7 @@ exports.getDashboardMetrics = async (req, res) => {
       variacionPabellones: 0,
       variacionMts2: 0,
       eficienciaGlobal: 0,
+      eficienciaPromedio: 0, // NUEVO
       danosMes: 0,
       danosPorTipo: [],
       alertas: [],
@@ -519,9 +642,12 @@ exports.getChartData = async (req, res) => {
     let whereClause = 'WHERE YEAR(fechaOrdenServicio) = ?';
     let params = [currentYear];
     
-    if (origen) {
-      whereClause += ' AND source = ?';
-      params.push(origen);
+    // Mapear valores de origen a los valores reales en la base de datos
+    const sourceValue = mapOrigenToSource(origen);
+    
+    if (sourceValue) {
+      whereClause += ' AND source COLLATE utf8mb4_unicode_ci = ?';
+      params.push(sourceValue);
     }
     
     // 1. Planillas por estado desde vista unificada
@@ -529,7 +655,7 @@ exports.getChartData = async (req, res) => {
       SELECT 
         nombreEstado as estado,
         COUNT(*) as cantidad
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreEstado
       ORDER BY cantidad DESC
@@ -544,13 +670,13 @@ exports.getChartData = async (req, res) => {
         DATE_FORMAT(fechaOrdenServicio, '%Y-%m') as periodo,
         COUNT(*) as cantidad,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       WHERE fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-      ${origen ? 'AND source = ?' : ''}
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
       GROUP BY DATE_FORMAT(fechaOrdenServicio, '%Y-%m')
       ORDER BY periodo ASC
     `, { 
-      replacements: origen ? [origen] : [],
+      replacements: sourceValue ? [sourceValue] : [],
       timeout: queryTimeout 
     });
     
@@ -561,7 +687,7 @@ exports.getChartData = async (req, res) => {
         COUNT(*) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total,
         COALESCE(SUM(cantLimpiar), 0) as pabellones_limpiados
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreSector
       ORDER BY pabellones_total DESC
@@ -602,7 +728,7 @@ exports.getChartData = async (req, res) => {
       }
     };
 
-    console.log('Datos de gráficos obtenidos desde vista unificada vw_ordenes_2025_actual');
+    console.log('Datos de gráficos obtenidos desde vista unificada vw_ordenes_unificada_completa');
     res.json(response);
 
   } catch (error) {
@@ -652,9 +778,12 @@ exports.getUnifiedStats = async (req, res) => {
     let whereClause = 'WHERE YEAR(fechaOrdenServicio) = ?';
     let params = [currentYear];
     
-    if (origen) {
-      whereClause += ' AND source = ?';
-      params.push(origen);
+    // Mapear valores de origen a los valores reales en la base de datos
+    const sourceValue = mapOrigenToSource(origen);
+    
+    if (sourceValue) {
+      whereClause += ' AND source COLLATE utf8mb4_unicode_ci = ?';
+      params.push(sourceValue);
     }
     
     if (currentMonth) {
@@ -670,7 +799,7 @@ exports.getUnifiedStats = async (req, res) => {
         COALESCE(SUM(cantLimpiar), 0) as total_pabellones_limpiados,
         COALESCE(AVG(cantidadPabellones), 0) as promedio_pabellones_por_planilla,
         COUNT(DISTINCT nombreSector) as sectores_activos
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
     `, { 
       replacements: params,
@@ -683,7 +812,7 @@ exports.getUnifiedStats = async (req, res) => {
         nombreEstado as estado,
         COUNT(*) as cantidad,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreEstado
       ORDER BY cantidad DESC
@@ -699,7 +828,7 @@ exports.getUnifiedStats = async (req, res) => {
         COUNT(*) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total,
         COALESCE(SUM(cantLimpiar), 0) as pabellones_limpiados
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreSupervisor
       ORDER BY pabellones_total DESC
@@ -716,13 +845,13 @@ exports.getUnifiedStats = async (req, res) => {
         COUNT(*) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total,
         COALESCE(SUM(cantLimpiar), 0) as pabellones_limpiados
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       WHERE fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-      ${origen ? 'AND source = ?' : ''}
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
       GROUP BY DATE_FORMAT(fechaOrdenServicio, '%Y-%m')
       ORDER BY periodo ASC
     `, { 
-      replacements: origen ? [origen] : [],
+      replacements: sourceValue ? [sourceValue] : [],
       timeout: queryTimeout 
     });
 
@@ -761,7 +890,7 @@ exports.getUnifiedStats = async (req, res) => {
       }
     };
 
-    console.log('Estadísticas unificadas obtenidas desde vista vw_ordenes_2025_actual');
+    console.log('Estadísticas unificadas obtenidas desde vista vw_ordenes_unificada_completa');
     res.json(response);
 
   } catch (error) {
@@ -1388,7 +1517,7 @@ exports.getDanoStatsPorOperador = async (req, res) => {
     let params = [currentYear];
     
     if (origen && origen !== 'todos') {
-      whereClause += ' AND v.source = ?';
+      whereClause += ' AND v.source COLLATE utf8mb4_unicode_ci = ?';
       params.push(origen);
     }
     
@@ -2992,6 +3121,522 @@ exports.actualizarDesdeMigracion = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al actualizar desde migración'
+    });
+  }
+};
+
+// NUEVA FUNCIÓN ESPECÍFICA PARA EL FRONTEND
+exports.getFrontendMetrics = async (req, res) => {
+  try {
+    console.log('🔍 Obteniendo métricas para el frontend...');
+    
+    // Forzar limpieza de caché
+    metricsCache = null;
+    cacheTimestamp = null;
+    
+    // Obtener parámetros de filtro
+    const { origen, year } = req.query;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    
+    // Construir filtros para la vista unificada
+    let whereClause = 'WHERE YEAR(fechaOrdenServicio) = ?';
+    let params = [currentYear];
+    
+    // Mapear valores de origen a los valores reales en la base de datos
+    const sourceValue = mapOrigenToSource(origen);
+    
+    if (sourceValue) {
+      whereClause += ' AND source COLLATE utf8mb4_unicode_ci = ?';
+      params.push(sourceValue);
+    }
+    
+    console.log('🔍 Ejecutando consulta para frontend con whereClause:', whereClause);
+    console.log('🔍 Params:', params);
+    
+    // 1. Métricas básicas
+    const [totalPlanillasResult] = await sequelize.query(`
+      SELECT 
+        COUNT(DISTINCT idOrdenServicio) as total,
+        COALESCE(SUM(cantidadPabellones), 0) as total_pabellones,
+        COALESCE(SUM(cantLimpiar), 0) as total_pabellones_limpiados,
+        COALESCE(SUM(mts2), 0) as total_mts2,
+        COALESCE(SUM(cantidadDano), 0) as total_danos
+      FROM vw_ordenes_unificada_completa
+      ${whereClause}
+    `, { 
+      replacements: params,
+      timeout: 8000 
+    });
+    
+    // 1.1. Pabellones por planilla única
+    const [pabellonesPorPlanillaResult] = await sequelize.query(`
+      SELECT 
+        COALESCE(SUM(cantidadPabellones), 0) as total_pabellones_unicos
+      FROM (
+        SELECT 
+          idOrdenServicio,
+          MAX(cantidadPabellones) as cantidadPabellones
+        FROM vw_ordenes_unificada_completa
+        ${whereClause}
+        GROUP BY idOrdenServicio
+      ) as planillas_unicas
+    `, { 
+      replacements: params,
+      timeout: 8000 
+    });
+    
+    // 2. Métricas del mes actual
+    const [metricasMesResult] = await sequelize.query(`
+      SELECT 
+        COUNT(DISTINCT idOrdenServicio) as planillas_mes,
+        COALESCE(SUM(cantidadPabellones), 0) as pabellones_mes,
+        COALESCE(SUM(mts2), 0) as mts2_mes
+      FROM vw_ordenes_unificada_completa
+      WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
+    `, { 
+      replacements: sourceValue ? [currentYear, currentMonth, sourceValue] : [currentYear, currentMonth],
+      timeout: 8000 
+    });
+    
+    // 3. Métricas del mes anterior
+    const [metricasMesAnteriorResult] = await sequelize.query(`
+      SELECT 
+        COUNT(DISTINCT idOrdenServicio) as planillas_mes_anterior,
+        COALESCE(SUM(cantidadPabellones), 0) as pabellones_mes_anterior,
+        COALESCE(SUM(mts2), 0) as mts2_mes_anterior
+      FROM vw_ordenes_unificada_completa
+      WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
+    `, { 
+      replacements: sourceValue ? [previousYear, previousMonth, sourceValue] : [previousYear, previousMonth],
+      timeout: 8000 
+    });
+    
+    // 4. Tendencias mensuales (últimos 6 meses)
+    console.log('🔍 Ejecutando consulta de tendencias mensuales...');
+    console.log('🔍 currentYear:', currentYear);
+    console.log('🔍 sourceValue:', sourceValue);
+    
+    const [tendenciasMensualesResult] = await sequelize.query(`
+      SELECT 
+        MONTH(fechaOrdenServicio) as mes,
+        COUNT(DISTINCT idOrdenServicio) as planillas,
+        COALESCE(SUM(cantidadPabellones), 0) as pabellones,
+        COALESCE(SUM(mts2), 0) as mts2
+      FROM vw_ordenes_unificada_completa
+      WHERE YEAR(fechaOrdenServicio) = ?
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
+      GROUP BY MONTH(fechaOrdenServicio)
+      ORDER BY mes ASC
+    `, { 
+      replacements: sourceValue ? [currentYear, sourceValue] : [currentYear],
+      timeout: 8000 
+    });
+    
+    console.log('📊 Resultado tendencias mensuales:', tendenciasMensualesResult);
+    
+    // 4.1. Pabellones por mes por planilla única
+    console.log('🔍 Ejecutando consulta de pabellones únicos...');
+    
+    const [tendenciasMensualesUnicosResult] = await sequelize.query(`
+      SELECT 
+        MONTH(fechaOrdenServicio) as mes,
+        COALESCE(SUM(cantidadPabellones), 0) as pabellones_unicos
+      FROM (
+        SELECT 
+          idOrdenServicio,
+          fechaOrdenServicio,
+          MAX(cantidadPabellones) as cantidadPabellones
+        FROM vw_ordenes_unificada_completa
+        WHERE YEAR(fechaOrdenServicio) = ?
+        ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
+        GROUP BY idOrdenServicio, fechaOrdenServicio
+      ) as planillas_mensuales_unicas
+      GROUP BY MONTH(fechaOrdenServicio)
+      ORDER BY mes ASC
+    `, { 
+      replacements: sourceValue ? [currentYear, sourceValue] : [currentYear],
+      timeout: 8000 
+    });
+    
+    console.log('📈 Resultado pabellones únicos:', tendenciasMensualesUnicosResult);
+    
+    // Planillas completadas
+    const [planillasCompletadasResult] = await sequelize.query(`
+      SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
+      FROM vw_ordenes_unificada_completa
+      ${whereClause}
+      AND fechaFinOrdenServicio IS NOT NULL 
+      AND fechaFinOrdenServicio != fechaOrdenServicio
+    `, { 
+      replacements: params,
+      timeout: 8000 
+    });
+    
+    // Sectores
+    const [rendimientoSectorResult] = await sequelize.query(`
+      SELECT 
+        nombreSector as sector_nombre,
+        COUNT(DISTINCT idOrdenServicio) as planillas,
+        COALESCE(SUM(cantidadPabellones), 0) as pabellones_total,
+        COALESCE(SUM(mts2), 0) as mts2_total
+      FROM vw_ordenes_unificada_completa
+      ${whereClause}
+      GROUP BY nombreSector
+      ORDER BY pabellones_total DESC
+      LIMIT 5
+    `, { 
+      replacements: params,
+      timeout: 8000 
+    });
+    
+    // Sectores únicos
+    const [rendimientoSectorUnicosResult] = await sequelize.query(`
+      SELECT 
+        nombreSector as sector_nombre,
+        COALESCE(SUM(cantidadPabellones), 0) as pabellones_total_unicos
+      FROM (
+        SELECT 
+          idOrdenServicio,
+          nombreSector,
+          MAX(cantidadPabellones) as cantidadPabellones
+        FROM vw_ordenes_unificada_completa
+        ${whereClause}
+        GROUP BY idOrdenServicio, nombreSector
+      ) as planillas_sector_unicas
+      GROUP BY nombreSector
+      ORDER BY pabellones_total_unicos DESC
+      LIMIT 5
+    `, { 
+      replacements: params,
+      timeout: 8000 
+    });
+    
+    const totalPlanillas = totalPlanillasResult[0].total || 0;
+    
+    // Calcular estados de planillas desde la vista unificada
+    let planillasPendientes = 0;
+    let planillasCanceladas = 0;
+    let planillasActivas = 0;
+    let planillasCompletadas = 0;
+    
+    // Obtener planillas pendientes y canceladas del sistema actual
+    try {
+      // Planillas pendientes: del sistema actual con fechaFinOrdenServicio NULL
+      const [planillasPendientesResult] = await sequelize.query(`
+        SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
+        FROM vw_ordenes_unificada_completa
+        WHERE source = 'sistema_actual'
+        AND fechaFinOrdenServicio IS NULL
+      `, { timeout: 8000 });
+      
+      // Planillas canceladas: del sistema actual con fechaFinOrdenServicio igual a fechaOrdenServicio
+      const [planillasCanceladasResult] = await sequelize.query(`
+        SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
+        FROM vw_ordenes_unificada_completa
+        WHERE source = 'sistema_actual'
+        AND fechaFinOrdenServicio IS NOT NULL
+        AND fechaFinOrdenServicio = fechaOrdenServicio
+      `, { timeout: 8000 });
+      
+      // Planillas activas: las que tienen fechaFinOrdenServicio NULL o igual a fechaOrdenServicio
+      const [planillasActivasResult] = await sequelize.query(`
+        SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
+        FROM vw_ordenes_unificada_completa
+        WHERE source = 'sistema_actual'
+        AND (fechaFinOrdenServicio IS NULL OR fechaFinOrdenServicio = fechaOrdenServicio)
+      `, { timeout: 8000 });
+      
+      // Planillas completadas: las que tienen fechaFinOrdenServicio diferente a fechaOrdenServicio
+      const [planillasCompletadasResult] = await sequelize.query(`
+        SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
+        FROM vw_ordenes_unificada_completa
+        WHERE source = 'sistema_actual'
+        AND fechaFinOrdenServicio IS NOT NULL 
+        AND fechaFinOrdenServicio != fechaOrdenServicio
+      `, { timeout: 8000 });
+      
+      planillasPendientes = planillasPendientesResult[0].cantidad || 0;
+      planillasCanceladas = planillasCanceladasResult[0].cantidad || 0;
+      planillasActivas = planillasActivasResult[0].cantidad || 0;
+      planillasCompletadas = planillasCompletadasResult[0].cantidad || 0;
+      
+      console.log('📊 Estados de planillas calculados:', {
+        pendientes: planillasPendientes,
+        canceladas: planillasCanceladas,
+        activas: planillasActivas,
+        completadas: planillasCompletadas
+      });
+    } catch (error) {
+      console.error('❌ Error calculando estados de planillas:', error);
+    }
+    
+    const eficienciaActual = totalPlanillas > 0 ? Math.round((planillasCompletadas / totalPlanillas) * 100) : 0;
+    
+    // NUEVO: Calcular operadores activos
+    const [operadoresActivosResult] = await sequelize.query(`
+      SELECT COUNT(DISTINCT nombreOperador) as operadores_activos
+      FROM vw_ordenes_unificada_completa
+      WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
+      ${sourceValue ? 'AND source COLLATE utf8mb4_unicode_ci = ?' : ''}
+      AND nombreOperador IS NOT NULL AND nombreOperador != 'Sin operador'
+    `, { 
+      replacements: sourceValue ? [currentYear, currentMonth, sourceValue] : [currentYear, currentMonth],
+      timeout: 8000 
+    });
+    
+    const operadoresActivos = operadoresActivosResult[0].operadores_activos || 0;
+    
+    // NUEVO: Calcular eficiencia promedio
+    const eficienciaPromedio = totalPlanillasResult[0].total_pabellones > 0 ? 
+      Math.round((totalPlanillasResult[0].total_pabellones_limpiados / totalPlanillasResult[0].total_pabellones) * 100) : 0;
+    
+    // Calcular métricas del mes
+    const planillasMes = metricasMesResult[0].planillas_mes || 0;
+    const pabellonesMes = metricasMesResult[0].pabellones_mes || 0;
+    const mts2Mes = metricasMesResult[0].mts2_mes || 0;
+    const planillasMesAnterior = metricasMesAnteriorResult[0].planillas_mes_anterior || 0;
+    const pabellonesMesAnterior = metricasMesAnteriorResult[0].pabellones_mes_anterior || 0;
+    const mts2MesAnterior = metricasMesAnteriorResult[0].mts2_mes_anterior || 0;
+    
+    // Calcular variaciones
+    const variacionPlanillas = planillasMesAnterior > 0 ? 
+      ((planillasMes - planillasMesAnterior) / planillasMesAnterior * 100).toFixed(1) : 0;
+    const variacionPabellones = pabellonesMesAnterior > 0 ? 
+      ((pabellonesMes - pabellonesMesAnterior) / pabellonesMesAnterior * 100).toFixed(1) : 0;
+    const variacionMts2 = mts2MesAnterior > 0 ? 
+      ((mts2Mes - mts2MesAnterior) / mts2MesAnterior * 100).toFixed(1) : 0;
+    
+    // Formatear tendencias mensuales
+    console.log('🔍 Formateando tendencias mensuales...');
+    console.log('🔍 tendenciasMensualesResult.length:', tendenciasMensualesResult.length);
+    console.log('🔍 tendenciasMensualesUnicosResult.length:', tendenciasMensualesUnicosResult.length);
+    
+    const tendenciasMensuales = tendenciasMensualesResult.map((item, index) => {
+      const pabellonesUnicos = tendenciasMensualesUnicosResult[index]?.pabellones_unicos || 0;
+      const tendencia = {
+        mes: new Date(currentYear, item.mes - 1).toLocaleDateString('es-ES', { month: 'short' }),
+        planillas: parseInt(item.planillas),
+        pabellones: parseInt(pabellonesUnicos),
+        mts2: parseInt(item.mts2)
+      };
+      console.log(`🔍 Tendencia ${index}:`, tendencia);
+      return tendencia;
+    });
+    
+    console.log('🎯 Tendencias formateadas finales:', tendenciasMensuales);
+    console.log('📊 Total tendencias formateadas:', tendenciasMensuales.length);
+    
+    // Formatear sectores
+    console.log('🔍 Formateando sectores...');
+    console.log('🔍 rendimientoSectorResult:', rendimientoSectorResult);
+    console.log('🔍 rendimientoSectorUnicosResult:', rendimientoSectorUnicosResult);
+    
+    const rendimientoPorSector = rendimientoSectorResult.map((item, index) => {
+      const pabellonesUnicos = rendimientoSectorUnicosResult[index]?.pabellones_total_unicos || 0;
+      const sector = {
+        nombre: item.sector_nombre || 'Sin sector',
+        planillas: parseInt(item.planillas),
+        pabellones: parseInt(pabellonesUnicos),
+        mts2: parseInt(item.mts2_total)
+      };
+      console.log(`🔍 Sector ${index}:`, sector);
+      return sector;
+    });
+    
+    console.log('🎯 Sectores formateados finales:', rendimientoPorSector);
+    console.log('📊 Total sectores formateados:', rendimientoPorSector.length);
+    
+    const response = {
+      totalPlanillas,
+      planillasActivas,
+      planillasCompletadas,
+      planillasPendientes,
+      planillasCanceladas,
+      totalMaquinas: 0,
+      totalOperadores: 0,
+      totalSectores: 0,
+      totalBarredores: 0,
+      totalPabellones: pabellonesPorPlanillaResult[0].total_pabellones_unicos,
+      totalMts2: totalPlanillasResult[0].total_mts2,
+      
+      // NUEVO: Operadores activos y eficiencia promedio
+      operadoresActivos,
+      eficienciaPromedio,
+      
+      planillasMes,
+      pabellonesMes,
+      mts2Mes,
+      planillasMesAnterior,
+      pabellonesMesAnterior,
+      mts2MesAnterior,
+      variacionPlanillas: parseFloat(variacionPlanillas),
+      variacionPabellones: parseFloat(variacionPabellones),
+      variacionMts2: parseFloat(variacionMts2),
+      eficienciaGlobal: eficienciaActual,
+      danosMes: 0,
+      danosPorTipo: [],
+      alertas: [],
+      charts: {
+        tendenciasMensuales,
+        rendimientoPorSector
+      },
+      metadata: {
+        origen: origen || 'todos',
+        year: currentYear,
+        timestamp: new Date().toISOString(),
+        fuente: 'frontend-direct'
+      }
+    };
+    
+    console.log('✅ Respuesta preparada para frontend:', {
+      totalPlanillas: response.totalPlanillas,
+      totalPabellones: response.totalPabellones,
+      eficienciaGlobal: response.eficienciaGlobal,
+      sectores: response.charts.rendimientoPorSector.length,
+      tendenciasMensuales: response.charts.tendenciasMensuales.length
+    });
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ Error en getFrontendMetrics:', error);
+    res.status(500).json({
+      message: 'Error obteniendo métricas del frontend',
+      error: error.message
+    });
+  }
+};
+
+// Nuevo método para obtener top de sectores
+exports.getTopSectores = async (req, res) => {
+  try {
+    console.log('🏆 Obteniendo top de sectores...');
+    
+    const { year, limit = 5, origen } = req.query;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+    const currentLimit = parseInt(limit);
+    
+    const queryTimeout = 5000;
+    
+    // Construir filtros para la vista unificada
+    let whereClause = 'WHERE YEAR(fechaOrdenServicio) = ?';
+    let params = [currentYear];
+    
+    // Mapear valores de origen a los valores reales en la base de datos
+    const sourceValue = mapOrigenToSource(origen);
+    
+    if (sourceValue) {
+      whereClause += ' AND source COLLATE utf8mb4_unicode_ci = ?';
+      params.push(sourceValue);
+    }
+    
+    // Consulta optimizada para top sectores
+    const [topSectoresResult] = await sequelize.query(`
+      SELECT 
+        nombreSector as sector_nombre,
+        COUNT(DISTINCT idOrdenServicio) as total_planillas,
+        COALESCE(SUM(cantidadPabellones), 0) as total_pabellones,
+        COALESCE(SUM(cantLimpiar), 0) as total_pabellones_limpiados,
+        COALESCE(SUM(mts2), 0) as total_mts2,
+        COALESCE(SUM(cantidadDano), 0) as total_danos,
+        COUNT(DISTINCT nombreOperador) as total_operadores,
+        COUNT(DISTINCT nroMaquina) as total_maquinas
+      FROM vw_ordenes_unificada_completa
+      ${whereClause}
+      AND nombreSector IS NOT NULL AND nombreSector != ''
+      GROUP BY nombreSector
+      ORDER BY total_pabellones DESC
+      LIMIT ?
+    `, { 
+      replacements: [...params, currentLimit],
+      timeout: queryTimeout 
+    });
+    
+    // Calcular estadísticas generales
+    const [estadisticasGenerales] = await sequelize.query(`
+      SELECT 
+        COUNT(DISTINCT nombreSector) as total_sectores,
+        SUM(cantidadPabellones) as total_pabellones_global,
+        SUM(cantLimpiar) as total_pabellones_limpiados_global,
+        SUM(mts2) as total_mts2_global,
+        SUM(cantidadDano) as total_danos_global
+      FROM vw_ordenes_unificada_completa
+      ${whereClause}
+    `, { 
+      replacements: params,
+      timeout: queryTimeout 
+    });
+    
+    const estadisticas = estadisticasGenerales[0];
+    
+    // Formatear respuesta
+    const topSectores = topSectoresResult.map((sector, index) => {
+      const porcentajePabellones = estadisticas.total_pabellones_global > 0 ? 
+        ((sector.total_pabellones / estadisticas.total_pabellones_global) * 100).toFixed(1) : 0;
+      
+      const porcentajeMts2 = estadisticas.total_mts2_global > 0 ? 
+        ((sector.total_mts2 / estadisticas.total_mts2_global) * 100).toFixed(1) : 0;
+      
+      const eficiencia = sector.total_pabellones > 0 ? 
+        ((sector.total_pabellones_limpiados / sector.total_pabellones) * 100).toFixed(1) : 0;
+      
+      return {
+        posicion: index + 1,
+        nombre: sector.sector_nombre,
+        totalPlanillas: parseInt(sector.total_planillas),
+        totalPabellones: parseInt(sector.total_pabellones),
+        totalPabellonesLimpiados: parseInt(sector.total_pabellones_limpiados),
+        totalMts2: parseFloat(sector.total_mts2),
+        totalDanos: parseInt(sector.total_danos || 0),
+        totalOperadores: parseInt(sector.total_operadores),
+        totalMaquinas: parseInt(sector.total_maquinas),
+        porcentajePabellones: parseFloat(porcentajePabellones),
+        porcentajeMts2: parseFloat(porcentajeMts2),
+        eficiencia: parseFloat(eficiencia),
+        // Formatear para mostrar
+        pabellonesFormateado: sector.total_pabellones.toLocaleString(),
+        mts2Formateado: formatAreaValue(sector.total_mts2),
+        eficienciaFormateada: `${eficiencia}%`
+      };
+    });
+    
+    const response = {
+      topSectores,
+      estadisticas: {
+        totalSectores: parseInt(estadisticas.total_sectores || 0),
+        totalPabellonesGlobal: parseInt(estadisticas.total_pabellones_global || 0),
+        totalPabellonesLimpiadosGlobal: parseInt(estadisticas.total_pabellones_limpiados_global || 0),
+        totalMts2Global: parseFloat(estadisticas.total_mts2_global || 0),
+        totalDanosGlobal: parseInt(estadisticas.total_danos_global || 0),
+        eficienciaGlobal: estadisticas.total_pabellones_global > 0 ? 
+          ((estadisticas.total_pabellones_limpiados_global / estadisticas.total_pabellones_global) * 100).toFixed(1) : 0
+      },
+      metadata: {
+        year: currentYear,
+        limit: currentLimit,
+        origen: origen || 'todos',
+        timestamp: new Date().toISOString(),
+        fuente: 'vw_ordenes_unificada_completa'
+      }
+    };
+    
+    console.log(`✅ Top ${currentLimit} sectores obtenidos exitosamente`);
+    console.log(`📊 Total sectores activos: ${response.estadisticas.totalSectores}`);
+    console.log(`🏗️ Total pabellones global: ${response.estadisticas.totalPabellonesGlobal.toLocaleString()}`);
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ Error obteniendo top de sectores:', error);
+    res.status(500).json({
+      error: 'Error al obtener top de sectores',
+      message: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 };

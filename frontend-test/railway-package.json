@@ -1,0 +1,16 @@
+{
+  "name": "extraccion-frontend",
+  "version": "1.0.0",
+  "description": "Frontend del sistema de extracción",
+  "scripts": {
+    "start": "npm run build && serve -s build -l 3000",
+    "build": "react-scripts build",
+    "dev": "react-scripts start"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "serve": "^14.2.1"
+  }
+} 

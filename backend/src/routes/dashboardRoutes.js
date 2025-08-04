@@ -4,6 +4,59 @@ const dashboardController = require('../controllers/dashboardController');
 const danoHistoricoController = require('../controllers/danoHistoricoController');
 const { authenticateToken } = require('../middlewares/authMiddleware');
 
+// ========================================
+// RUTA DE PRUEBA COMPLETAMENTE INDEPENDIENTE
+// ========================================
+router.get('/test-complete', (req, res) => {
+  res.json({ 
+    message: 'Test completo funciona', 
+    timestamp: new Date().toISOString(),
+    route: '/test-complete',
+    method: req.method,
+    url: req.url,
+    headers: req.headers
+  });
+});
+
+// RUTA DE PRUEBA MUY SIMPLE (sin autenticación)
+router.get('/ping', (req, res) => {
+  res.json({ 
+    message: 'Ping exitoso', 
+    timestamp: new Date().toISOString(),
+    route: '/ping'
+  });
+});
+
+// RUTA DE PRUEBA PARA FRONTEND (sin autenticación)
+router.get('/frontend-test', (req, res) => {
+  res.json({ 
+    message: 'Frontend test funciona', 
+    timestamp: new Date().toISOString(),
+    route: '/frontend-test',
+    method: req.method,
+    url: req.url
+  });
+});
+
+// ========================================
+// RUTAS SIN AUTENTICACIÓN (PRIMERO)
+// ========================================
+
+// RUTA DE PRUEBA SIMPLE (sin autenticación)
+router.get('/test-simple', (req, res) => {
+  res.json({ 
+    message: 'Test simple funciona', 
+    timestamp: new Date().toISOString(),
+    route: '/test-simple'
+  });
+});
+
+// RUTA TEMPORAL PARA EL FRONTEND (sin autenticación)
+router.get('/frontend-metrics', dashboardController.getFrontendMetrics);
+
+// RUTA DE PRUEBA PARA TOP SECTORES (sin autenticación)
+router.get('/sectores/test-top', dashboardController.getTopSectores);
+
 // RUTAS DE PRUEBA SIN AUTENTICACIÓN (solo para desarrollo)
 router.get('/danos/test-historicos', danoHistoricoController.getDanoStatsHistoricos);
 router.get('/danos/test-combinadas', danoHistoricoController.getDanoStatsCombinadas);
@@ -25,8 +78,14 @@ router.get('/danos/test-por-operador', dashboardController.getDanoStatsPorOperad
 // NUEVA RUTA DE PRUEBA PARA ANÁLISIS PETRÓLEO (sin autenticación)
 router.get('/petroleo/test-metrics', dashboardController.getPetroleoMetrics);
 
-// Aplicar autenticación al resto de rutas
+// ========================================
+// APLICAR AUTENTICACIÓN AL RESTO DE RUTAS
+// ========================================
 router.use(authenticateToken);
+
+// ========================================
+// RUTAS CON AUTENTICACIÓN (DESPUÉS)
+// ========================================
 
 router.get('/metrics', dashboardController.getDashboardMetrics);
 router.get('/charts', dashboardController.getChartData);
@@ -40,6 +99,9 @@ router.get('/unified/stats', dashboardController.getUnifiedStats);
 
 // NUEVA RUTA PARA ANÁLISIS PETRÓLEO (con autenticación)
 router.get('/petroleo/metrics', dashboardController.getPetroleoMetrics);
+
+// NUEVA RUTA PARA TOP SECTORES (con autenticación)
+router.get('/sectores/top', dashboardController.getTopSectores);
 
 // Rutas para datos históricos (delegadas al controlador específico)
 router.get('/danos/combinadas', danoHistoricoController.getDanoStatsCombinadas);

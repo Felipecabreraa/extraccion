@@ -1,0 +1,32 @@
+# Archivos de testing
+coverage/
+reports/
+screenshots/
+test-results-*.json
+frontend-test-results-*.json
+test-report-*.json
+test-report-*.html
+
+# Archivos de configuración de testing
+.env.test
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencias
+node_modules/
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db

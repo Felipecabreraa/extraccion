@@ -123,14 +123,7 @@ async function setupAmbientes() {
       runCommand('npm install -g @railway/cli');
     }
     
-    // Verificar Vercel CLI
-    try {
-      execSync('npx vercel --version', { stdio: 'pipe' });
-      console.log('✅ Vercel CLI ya está instalado');
-    } catch {
-      console.log('📦 Instalando Vercel CLI...');
-      runCommand('npm install -g vercel');
-    }
+
     
     console.log('\n📋 PASO 6: Creando archivos de configuración local...');
     
@@ -141,8 +134,8 @@ async function setupAmbientes() {
     console.log('\n✅ ¡Configuración de ambientes completada!');
     console.log('\n🌐 URLs de Acceso:');
     console.log('   🟢 Desarrollo: http://localhost:3000');
-    console.log('   🟡 Staging: https://frontend-staging.vercel.app');
-    console.log('   🔴 Producción: https://frontend-p5lhq0h0n-felipe-lagos-projects-f57024eb.vercel.app');
+    console.log('   🟡 Staging: [Configurar nuevo despliegue]');
+    console.log('   🔴 Producción: [Configurar nuevo despliegue]');
     
     console.log('\n🚀 Comandos disponibles:');
     console.log('   - node scripts/start-development.js    # Iniciar desarrollo');

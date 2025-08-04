@@ -1,104 +1,67 @@
 #!/usr/bin/env node
 
-const { execSync, spawn } = require('child_process');
-const fs = require('fs');
+const { spawn } = require('child_process');
 const path = require('path');
 
-console.log('🚀 Iniciando ambiente de DESARROLLO LOCAL...');
-
-// Función para copiar archivo de configuración
-function copyEnvFile(source, destination) {
-  try {
-    fs.copyFileSync(source, destination);
-    console.log(`✅ Copiado: ${source} → ${destination}`);
-  } catch (error) {
-    console.error(`❌ Error copiando ${source}:`, error.message);
-  }
-}
+console.log('🚀 Iniciando ambiente de DESARROLLO...');
 
 // Función para ejecutar comando en paralelo
-function runParallel(commands) {
-  const processes = commands.map(cmd => {
-    const [command, ...args] = cmd.split(' ');
-    return spawn(command, args, { 
-      stdio: 'inherit',
-      shell: true,
-      cwd: cmd.cwd || process.cwd()
-    });
+function runCommand(command, cwd, name) {
+  const [cmd, ...args] = command.split(' ');
+  const child = spawn(cmd, args, { 
+    cwd, 
+    stdio: 'inherit',
+    shell: true 
   });
-
-  // Manejar salida de procesos
-  processes.forEach((process, index) => {
-    process.on('close', (code) => {
-      if (code !== 0) {
-        console.error(`❌ Proceso ${index + 1} terminó con código ${code}`);
-      }
-    });
+  
+  child.on('error', (error) => {
+    console.error(`❌ Error en ${name}:`, error.message);
   });
-
-  return processes;
+  
+  child.on('close', (code) => {
+    console.log(`✅ ${name} terminado con código: ${code}`);
+  });
+  
+  return child;
 }
 
 async function startDevelopment() {
   try {
-    console.log('\n📋 PASO 1: Configurando backend para desarrollo...');
+    console.log('\n📋 PASO 1: Configurando ambiente de desarrollo...');
     
-    // Copiar configuración de desarrollo al backend
-    copyEnvFile(
-      path.join(__dirname, '../backend/env.development'),
-      path.join(__dirname, '../backend/.env')
-    );
+    // Cambiar a ambiente de desarrollo
+    const { execSync } = require('child_process');
+    execSync('node scripts/switch-to-development.js', { stdio: 'inherit' });
     
-    console.log('\n📋 PASO 2: Configurando frontend para desarrollo...');
-    
-    // Copiar configuración de desarrollo al frontend
-    copyEnvFile(
-      path.join(__dirname, '../frontend/env.development'),
-      path.join(__dirname, '../frontend/.env')
-    );
-    
-    console.log('\n📋 PASO 3: Instalando dependencias...');
+    console.log('\n📋 PASO 2: Instalando dependencias...');
     
     // Instalar dependencias del backend
     console.log('📦 Instalando dependencias del backend...');
-    execSync('npm install', { 
-      cwd: path.join(__dirname, '../backend'),
-      stdio: 'inherit'
-    });
+    execSync('npm install', { cwd: 'backend', stdio: 'inherit' });
     
     // Instalar dependencias del frontend
     console.log('📦 Instalando dependencias del frontend...');
-    execSync('npm install', { 
-      cwd: path.join(__dirname, '../frontend'),
-      stdio: 'inherit'
-    });
+    execSync('npm install', { cwd: 'frontend', stdio: 'inherit' });
     
-    console.log('\n📋 PASO 4: Iniciando servicios en paralelo...');
+    console.log('\n📋 PASO 3: Iniciando servidores...');
     
-    // Iniciar backend y frontend en paralelo
-    const processes = runParallel([
-      {
-        command: 'npm start',
-        cwd: path.join(__dirname, '../backend')
-      },
-      {
-        command: 'npm start',
-        cwd: path.join(__dirname, '../frontend')
-      }
-    ]);
+    // Iniciar backend
+    console.log('🚀 Iniciando backend...');
+    const backend = runCommand('npm run dev', 'backend', 'Backend');
+    
+    // Esperar un poco antes de iniciar frontend
+    setTimeout(() => {
+      console.log('🚀 Iniciando frontend...');
+      const frontend = runCommand('npm start', 'frontend', 'Frontend');
+    }, 3000);
     
     console.log('\n✅ ¡Ambiente de desarrollo iniciado!');
-    console.log('\n🌐 URLs de Desarrollo:');
+    console.log('\n🌐 URLs:');
     console.log('   - Backend: http://localhost:3001');
     console.log('   - Frontend: http://localhost:3000');
-    console.log('\n📝 Para detener los servicios, presiona Ctrl+C');
+    console.log('   - API Health: http://localhost:3001/health');
     
-    // Manejar señal de terminación
-    process.on('SIGINT', () => {
-      console.log('\n🛑 Deteniendo servicios...');
-      processes.forEach(proc => proc.kill('SIGINT'));
-      process.exit(0);
-    });
+    console.log('\n💡 Para detener: Ctrl+C');
     
   } catch (error) {
     console.error('\n❌ Error iniciando desarrollo:', error.message);
@@ -106,4 +69,4 @@ async function startDevelopment() {
   }
 }
 
-startDevelopment(); 
+startDevelopment();
