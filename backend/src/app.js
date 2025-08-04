@@ -34,18 +34,13 @@ const app = express();
 // Middleware de logging
 app.use(logger.request);
 
-// CORS configurado para Vercel + Railway
+// Configuración de CORS - SOLUCIÓN TEMPORAL
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['https://extracciontrn.vercel.app', 'http://localhost:3000', 'http://localhost:3002'];
 app.use(cors({
-  origin: [
-    'https://frontend-1m7t9y5hl-felipe-lagos-projects-f57024eb.vercel.app',
-    'https://frontend-10b2y95zg-felipe-lagos-projects-f57024eb.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
-  optionsSuccessStatus: 200
+  origin: corsOrigin,
+  credentials: true
 }));
 
 // Configuración de seguridad
@@ -159,6 +154,29 @@ app.use('/api/danos-historicos', danoHistoricoRoutes);
 app.use('/api/metros-superficie', metrosSuperficieRoutes);
 app.use('/api/danos-acumulados', danosAcumuladosRoutes);
 
+// RUTA DE PRUEBA DIRECTA (sin middleware)
+app.get('/api/test-direct', (req, res) => {
+  res.json({ 
+    message: 'Test directo funciona', 
+    timestamp: new Date().toISOString(),
+    route: '/api/test-direct'
+  });
+});
+
+// RUTA DIRECTA PARA FRONTEND METRICS (sin middleware)
+app.get('/api/frontend-metrics-direct', async (req, res) => {
+  try {
+    const dashboardController = require('./controllers/dashboardController');
+    await dashboardController.getFrontendMetrics(req, res);
+  } catch (error) {
+    console.error('Error en ruta directa:', error);
+    res.status(500).json({ 
+      message: 'Error interno',
+      error: error.message 
+    });
+  }
+});
+
 // Middleware de manejo de errores
 app.use(errorHandler);
 
@@ -178,7 +196,7 @@ app.use('*', (req, res) => {
 });
 
 // Inicializar servidor
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {
