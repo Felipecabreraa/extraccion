@@ -30,16 +30,22 @@ if (!fs.existsSync(packageJsonPath)) {
 
 console.log('✅ package.json encontrado');
 
-// Buscar el directorio public de forma más flexible
+// Buscar el directorio public desde la raíz del proyecto
 let publicDir = null;
+const projectRoot = path.join(currentDir, '..', '..'); // Subir dos niveles desde frontend
+console.log('🔍 Buscando desde la raíz del proyecto:', projectRoot);
+
 const possiblePublicPaths = [
-  path.join(currentDir, 'public'),
-  path.join(currentDir, 'src', 'public'),
-  path.join(currentDir, '..', 'public'),
-  path.join(currentDir, '..', 'frontend', 'public')
+  path.join(currentDir, 'public'), // Desde frontend/
+  path.join(currentDir, '..', 'public'), // Desde src/
+  path.join(projectRoot, 'frontend', 'public'), // Desde raíz/frontend/public
+  path.join(projectRoot, 'public'), // Desde raíz/public
+  path.join(currentDir, 'src', 'public'), // Desde frontend/src/public
 ];
 
+console.log('🔍 Verificando rutas:');
 for (const publicPath of possiblePublicPaths) {
+  console.log(`  - ${publicPath}`);
   if (fs.existsSync(publicPath)) {
     publicDir = publicPath;
     console.log(`✅ Directorio public encontrado en: ${publicPath}`);
@@ -49,8 +55,22 @@ for (const publicPath of possiblePublicPaths) {
 
 if (!publicDir) {
   console.error('❌ No se encontró el directorio public en ninguna ubicación esperada');
-  console.log('🔍 Rutas verificadas:');
-  possiblePublicPaths.forEach(p => console.log(`  - ${p}`));
+  
+  // Intentar listar el contenido de directorios padre para debugging
+  console.log('🔍 Explorando directorios padre:');
+  try {
+    const parentDir = path.join(currentDir, '..');
+    console.log(`📁 Contenido de ${parentDir}:`);
+    const parentFiles = fs.readdirSync(parentDir);
+    parentFiles.forEach(file => {
+      const stats = fs.statSync(path.join(parentDir, file));
+      const type = stats.isDirectory() ? '📁' : '📄';
+      console.log(`  ${type} ${file}`);
+    });
+  } catch (error) {
+    console.error('Error explorando directorio padre:', error.message);
+  }
+  
   process.exit(1);
 }
 
