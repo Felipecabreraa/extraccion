@@ -26,9 +26,10 @@ services:
       - key: CORS_ORIGIN
         value: https://extraccion-frontend-test.onrender.com
 
-  # Frontend React (servicio estático)
-  - type: static
+  # Frontend React (servicio web estático)
+  - type: web
     name: extraccion-frontend-test
+    env: static
     plan: starter
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/build
