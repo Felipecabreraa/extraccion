@@ -35,8 +35,23 @@ const app = express();
 app.use(logger.request);
 
 // Configuración de CORS - SOLUCIÓN DEFINITIVA
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://extraccion-frontend-test.onrender.com',
+  'https://extraccion-frontend.onrender.com'
+];
+
 app.use(cors({
-  origin: true, // Permite todos los orígenes temporalmente
+  origin: function (origin, callback) {
+    // Permitir requests sin origin (como mobile apps o Postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept']

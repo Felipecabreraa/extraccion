@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Configuración de axios para desarrollo y producción
 const baseURL = process.env.NODE_ENV === 'production' 
-  ? 'https://extraccion-backend.onrender.com/api'  // URL de producción corregida
+  ? 'https://extraccion-backend-test.onrender.com/api'  // URL correcta del backend en Render
   : 'http://localhost:3001/api';                 // URL local
 
 const api = axios.create({
