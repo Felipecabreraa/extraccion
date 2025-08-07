@@ -7,12 +7,35 @@ export default function BarredorForm({ planillaId, barredoresDisponibles, onAdd 
   const [horas, setHoras] = useState('');
   const [error, setError] = useState('');
 
+  const handleDiasChange = (e) => {
+    const value = e.target.value;
+    setDias(value);
+    
+    // Si se selecciona 0 días trabajados, limpiar horas extras
+    if (value === '0' || value === 0) {
+      setHoras('');
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!barredorId || dias === '' || horas === '') {
       setError('Completa todos los campos');
       return;
     }
+    
+    // Validar que los días trabajados sean al menos 1
+    if (parseInt(dias) < 1) {
+      setError('Los días trabajados deben ser al menos 1');
+      return;
+    }
+    
+    // Validar que no se puedan guardar horas extras cuando los días trabajados son 0
+    if ((dias === '0' || dias === 0) && horas !== '' && horas !== '0') {
+      setError('No se pueden registrar horas extras cuando el barredor no trabajó ningún día');
+      return;
+    }
+    
     setError('');
     onAdd({
       barredor_id: barredorId,
@@ -30,6 +53,19 @@ export default function BarredorForm({ planillaId, barredoresDisponibles, onAdd 
       <Typography variant="subtitle1" mb={2} fontWeight={600}>
         Agregar Barredor
       </Typography>
+      
+      {/* Mensaje informativo sobre validaciones */}
+      <Box sx={{ 
+        mb: 2, 
+        p: 2, 
+        backgroundColor: '#e3f2fd', 
+        borderRadius: 1, 
+        border: '1px solid #2196f3' 
+      }}>
+        <Typography variant="body2" color="text.secondary">
+          <strong>Nota:</strong> Los días trabajados deben ser al menos 1 día. Si el barredor no trabajó ningún día (0 días), no se pueden registrar horas extras.
+        </Typography>
+      </Box>
       <Grid container spacing={2}>
         <Grid item xs={12} sm={4}>
           <TextField
@@ -53,14 +89,14 @@ export default function BarredorForm({ planillaId, barredoresDisponibles, onAdd 
             select
             label="Días Trabajados"
             value={dias}
-            onChange={e => setDias(e.target.value)}
+            onChange={handleDiasChange}
             fullWidth
             required
-            helperText="Seleccione los días trabajados."
+            helperText="Seleccione los días trabajados (mínimo 1 día)."
             InputLabelProps={{ shrink: true }}
           >
             <MenuItem value="">-- Seleccione Días --</MenuItem>
-            {[0,1,2].map(opt => (
+            {[1,2].map(opt => (
               <MenuItem key={opt} value={opt}>{opt}</MenuItem>
             ))}
           </TextField>
@@ -73,10 +109,15 @@ export default function BarredorForm({ planillaId, barredoresDisponibles, onAdd 
             onChange={e => setHoras(e.target.value)}
             fullWidth
             required
-            helperText="Seleccione las horas extras."
+            disabled={dias === '0' || dias === 0}
+            helperText={
+              dias === '0' || dias === 0 
+                ? "No se pueden seleccionar horas extras cuando no hay días trabajados"
+                : "Seleccione las horas extras."
+            }
             InputLabelProps={{ shrink: true }}
           >
-            <MenuItem value="">-- Seleccione Horas --</MenuItem>
+            <MenuItem value="">-- Sin Hrs Extras --</MenuItem>
             {[0,1,2,3,4,5].map(opt => (
               <MenuItem key={opt} value={opt}>{opt}</MenuItem>
             ))}

@@ -3,8 +3,8 @@ import {
   Box, Typography, Grid, Card, CardContent, Paper, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   CircularProgress, Alert, IconButton, Tooltip, Tabs, Tab,
-  FormControl, InputLabel, Select, MenuItem, Avatar, Divider,
-  LinearProgress, Rating, Badge
+  FormControl, InputLabel, Select, MenuItem,
+  LinearProgress, Badge
 } from '@mui/material';
 import {
   LocalGasStation as GasIcon,
@@ -14,7 +14,6 @@ import {
   Refresh as RefreshIcon,
   Assessment as AssessmentIcon,
   Engineering as EngineeringIcon,
-  LocationOn as LocationIcon,
   Timeline as TimelineIcon,
   BarChart as BarChartIcon,
   PieChart as PieChartIcon,
@@ -35,7 +34,7 @@ import KPIVisual from '../components/KPIVisual';
 import { formatLitersValue, formatKmValue, formatAreaValue, formatLitersPerM2Value, formatLitersPerKmValue } from '../utils/dataTransformers';
 
 const PetroleoAnalisis = () => {
-  const { usuario } = useAuth();
+  // const { usuario } = useAuth(); // Variable no utilizada
   const [datos, setDatos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

@@ -26,6 +26,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import LoadingSpinner from './components/LoadingSpinner';
+import EnvironmentBanner from './components/EnvironmentBanner';
 
 function PrivateRoute({ children }) {
   const { token, loading } = useAuth();
@@ -91,6 +92,7 @@ export default function App() {
         <ResponsiveProvider>
           <RouterWrapper>
             <AppRoutes />
+            <EnvironmentBanner />
           </RouterWrapper>
         </ResponsiveProvider>
       </AuthProvider>

@@ -12,6 +12,8 @@ import {
 import { Box, Typography, Card, CardContent } from '@mui/material';
 
 const DanosAcumuladosChart = ({ data }) => {
+  console.log('📊 DanosAcumuladosChart recibió datos:', data ? 'SÍ' : 'NO');
+  
   // Preparar datos para el gráfico
   const chartData = data?.datosMensuales?.map((mes, index) => {
     const mesData = {
@@ -23,6 +25,8 @@ const DanosAcumuladosChart = ({ data }) => {
     };
     return mesData;
   }) || [];
+
+  console.log('📊 Datos preparados para el gráfico:', chartData.length, 'meses');
 
   // Configurar colores y estilos
   const colors = {

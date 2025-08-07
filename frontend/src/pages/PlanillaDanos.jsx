@@ -27,6 +27,18 @@ export default function PlanillaDanos({ planillaId }) {
   const [todasLasMaquinas, setTodasLasMaquinas] = useState([]);
   const [registros, setRegistros] = useState([]);
   const [pabellonMaquina, setPabellonMaquina] = useState([]);
+  
+  // Verificar si el usuario está autenticado
+  const isAuthenticated = () => {
+    const token = localStorage.getItem('token');
+    return token && token.length > 0;
+  };
+  
+  // Contar registros con cantidades inválidas para mostrar en el mensaje
+  const registrosInvalidos = registros.filter(r => {
+    const cantidadInvalida = parseInt(r.cantidad) < 0 || parseInt(r.cantidad) > 999;
+    return cantidadInvalida;
+  }).length;
   const [form, setForm] = useState({
     pabellon_id: '',
     maquina_id: '',
@@ -114,10 +126,29 @@ export default function PlanillaDanos({ planillaId }) {
 
   const handleSubmit = e => {
     e.preventDefault();
+    
+    // Verificar autenticación
+    if (!isAuthenticated()) {
+      setError('No está autenticado. Por favor, inicie sesión.');
+      return;
+    }
+    
     if (!form.pabellon_id || !form.maquina_id || !form.tipo || !form.descripcion || !form.cantidad) {
       setError('Completa todos los campos obligatorios');
       return;
     }
+    
+    // Validar que la cantidad sea >= 0 y <= 999
+    const cantidad = parseInt(form.cantidad);
+    if (cantidad < 0) {
+      setError('La cantidad no puede ser negativa');
+      return;
+    }
+    if (cantidad > 999) {
+      setError('La cantidad no puede exceder 999 (máximo 3 dígitos)');
+      return;
+    }
+    
     if (registros.some(r => r.pabellon_id === form.pabellon_id && r.maquina_id === form.maquina_id)) {
       setError('Ya existe un daño registrado para esa máquina en ese pabellón.');
       return;
@@ -133,7 +164,15 @@ export default function PlanillaDanos({ planillaId }) {
           detail: { action: 'create', id: response.data.id } 
         }));
       })
-      .catch(() => setError('Error al agregar'));
+      .catch((error) => {
+        if (error.response?.status === 403) {
+          setError('Error de autorización. Por favor, inicie sesión nuevamente.');
+        } else if (error.response?.status === 401) {
+          setError('Sesión expirada. Por favor, inicie sesión nuevamente.');
+        } else {
+          setError('Error al agregar daño. Verifique su conexión.');
+        }
+      });
   };
 
   const handleDelete = idx => {
@@ -153,7 +192,15 @@ export default function PlanillaDanos({ planillaId }) {
           detail: { action: 'delete', id } 
         }));
       })
-      .catch(() => setError('Error al eliminar'));
+      .catch((error) => {
+        if (error.response?.status === 403) {
+          setError('Error de autorización. Por favor, inicie sesión nuevamente.');
+        } else if (error.response?.status === 401) {
+          setError('Sesión expirada. Por favor, inicie sesión nuevamente.');
+        } else {
+          setError('Error al eliminar daño. Verifique su conexión.');
+        }
+      });
   };
 
   const handleEdit = idx => {
@@ -171,8 +218,26 @@ export default function PlanillaDanos({ planillaId }) {
 
   const handleEditSave = async e => {
     e.preventDefault();
+    
+    // Verificar autenticación
+    if (!isAuthenticated()) {
+      setError('No está autenticado. Por favor, inicie sesión.');
+      return;
+    }
+    
     if (!form.pabellon_id || !form.maquina_id || !form.tipo || !form.descripcion || !form.cantidad) {
       setError('Completa todos los campos obligatorios');
+      return;
+    }
+    
+    // Validar que la cantidad sea >= 0 y <= 999
+    const cantidad = parseInt(form.cantidad);
+    if (cantidad < 0) {
+      setError('La cantidad no puede ser negativa');
+      return;
+    }
+    if (cantidad > 999) {
+      setError('La cantidad no puede exceder 999 (máximo 3 dígitos)');
       return;
     }
     setError('');
@@ -187,8 +252,14 @@ export default function PlanillaDanos({ planillaId }) {
       window.dispatchEvent(new CustomEvent('danosUpdated', { 
         detail: { action: 'update', id: editData.id } 
       }));
-    } catch {
-      setError('Error al editar');
+    } catch (error) {
+      if (error.response?.status === 403) {
+        setError('Error de autorización. Por favor, inicie sesión nuevamente.');
+      } else if (error.response?.status === 401) {
+        setError('Sesión expirada. Por favor, inicie sesión nuevamente.');
+      } else {
+        setError('Error al editar daño. Verifique su conexión.');
+      }
     }
   };
 
@@ -203,6 +274,34 @@ export default function PlanillaDanos({ planillaId }) {
   return (
     <Box>
       <Typography variant="h6" mb={2}>Agregar Daños a Planilla #{planillaId}</Typography>
+      
+             {/* Mensaje informativo sobre validaciones */}
+       <Box sx={{ 
+         mb: 2, 
+         p: 2, 
+         backgroundColor: '#e3f2fd', 
+         borderRadius: 1, 
+         border: '1px solid #2196f3' 
+       }}>
+         <Typography variant="body2" color="text.secondary">
+           <strong>Nota:</strong> La cantidad de daños debe ser mayor o igual a 0 y no puede exceder 999 (máximo 3 dígitos).
+         </Typography>
+       </Box>
+       
+       {/* Mensaje de estado de autenticación */}
+       {!isAuthenticated() && (
+         <Box sx={{ 
+           mb: 2, 
+           p: 2, 
+           backgroundColor: '#ffebee', 
+           borderRadius: 1, 
+           border: '1px solid #f44336' 
+         }}>
+           <Typography variant="body2" color="error">
+             <strong>Advertencia:</strong> No está autenticado. Es posible que no pueda guardar datos.
+           </Typography>
+         </Box>
+       )}
       <Box component="form" onSubmit={editIdx === -1 ? handleSubmit : handleEditSave} sx={{ mb: 2 }}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
@@ -288,9 +387,14 @@ export default function PlanillaDanos({ planillaId }) {
               onChange={handleChange}
               fullWidth
               required
-              helperText="Ingrese la cantidad de daños."
+              helperText="Ingrese la cantidad de daños (máximo 999 - 3 dígitos)."
               InputLabelProps={{ shrink: true }}
-              inputProps={{ min: 1 }}
+              inputProps={{ 
+                min: 0, 
+                max: 999,
+                maxLength: 3
+              }}
+              error={parseInt(form.cantidad) > 999 || parseInt(form.cantidad) < 0}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -315,6 +419,23 @@ export default function PlanillaDanos({ planillaId }) {
           <Button variant="outlined" sx={{ mt: 2, ml: 2 }} onClick={handleCancelEdit}>Cancelar</Button>
         )}
       </Box>
+      
+      {/* Mensaje de registros inválidos */}
+      {registrosInvalidos > 0 && (
+        <Box sx={{ 
+          mb: 2, 
+          p: 1, 
+          backgroundColor: '#fff3cd', 
+          borderRadius: 1, 
+          border: '1px solid #ffc107',
+          fontSize: '0.875rem'
+        }}>
+          <Typography variant="body2" color="text.secondary">
+            <strong>Nota:</strong> {registrosInvalidos} registro(s) marcado(s) en amarillo tienen cantidades invalidas (menor a 0 o mayor a 999).
+          </Typography>
+        </Box>
+      )}
+      
       <TableContainer component={Paper} sx={{ mt: 2 }}>
         <Table size="small">
           <TableHead>
@@ -329,25 +450,37 @@ export default function PlanillaDanos({ planillaId }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {registros.map((r, idx) => (
-              <TableRow key={r.id}>
+            {registros.map((r, idx) => {
+              const cantidadInvalida = parseInt(r.cantidad) < 0 || parseInt(r.cantidad) > 999;
+              
+              return (
+                <TableRow 
+                  key={r.id}
+                  sx={{
+                    backgroundColor: cantidadInvalida ? '#fff3cd' : 'inherit',
+                    '&:hover': {
+                      backgroundColor: cantidadInvalida ? '#ffeaa7' : '#f5f5f5'
+                    }
+                  }}
+                >
                 <TableCell>{pabellones.find(p => p.id === r.pabellon_id)?.nombre || `Pabellón ${r.pabellon_id}`}</TableCell>
                 <TableCell>{todasLasMaquinas.find(m => m.id === r.maquina_id)?.numero || r.maquina_id}</TableCell>
                 <TableCell>{r.tipo}</TableCell>
                 <TableCell>{r.descripcion}</TableCell>
                 <TableCell>{r.cantidad}</TableCell>
                 <TableCell>{r.observacion}</TableCell>
-                <TableCell>
-                  <IconButton onClick={() => handleEdit(idx)} color="primary">
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={() => handleDelete(idx)} color="error">
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+                                  <TableCell>
+                    <IconButton onClick={() => handleEdit(idx)} color="primary">
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton onClick={() => handleDelete(idx)} color="error">
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            </TableBody>
         </Table>
       </TableContainer>
       {/* Diálogo de confirmación para eliminar */}

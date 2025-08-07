@@ -26,14 +26,6 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verificar que el usuario esté activo
-    if (usuario.estado === 'inactivo') {
-      return res.status(401).json({ 
-        message: 'Usuario inactivo',
-        code: 'USER_INACTIVE'
-      });
-    }
-
     req.usuario = {
       id: usuario.id,
       nombre: usuario.nombre,

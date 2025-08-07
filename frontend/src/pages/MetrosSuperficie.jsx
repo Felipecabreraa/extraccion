@@ -4,7 +4,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   CircularProgress, Alert, IconButton, Tooltip, Button, Dialog,
   DialogTitle, DialogContent, DialogActions, TextField, FormControl,
-  InputLabel, Select, MenuItem, Snackbar, Divider, LinearProgress,
+  InputLabel, Select, MenuItem, Snackbar, LinearProgress,
   FormHelperText, InputAdornment, ToggleButton, ToggleButtonGroup
 } from '@mui/material';
 import {
@@ -15,15 +15,14 @@ import {
   Calculate as CalculateIcon,
   Assessment as AssessmentIcon,
   DateRange as DateRangeIcon,
-  LocationOn as LocationIcon,
   ViewModule as ViewModuleIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
   Close as CloseIcon,
   ViewList as ViewListIcon,
-  Dashboard as DashboardIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  LocationOn as LocationIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import axios from '../api/axios';
@@ -116,10 +115,10 @@ const MetrosSuperficie = () => {
     }
   }, [filtros]);
 
-  // Función para aplicar filtros automáticamente
-  const aplicarFiltrosAutomatico = useCallback(() => {
-    cargarDatosIniciales();
-  }, [cargarDatosIniciales]);
+  // Función para aplicar filtros automáticamente (no utilizada actualmente)
+  // const aplicarFiltrosAutomatico = useCallback(() => {
+  //   cargarDatosIniciales();
+  // }, [cargarDatosIniciales]);
 
   // Función para limpiar filtros
   const limpiarFiltros = () => {

@@ -142,16 +142,17 @@ export default function Planillas() {
   useEffect(() => {
     if (formData.sector_id && sectores.length > 0) {
       const sector = sectores.find(s => s.id === Number(formData.sector_id));
-      if (sector && !editingPlanilla) {
-        // Solo actualizar automáticamente si no estamos editando
+      if (sector) {
+        // Actualizar automáticamente la cantidad de pabellones siempre que cambie el sector
         setFormData(f => ({ 
           ...f, 
-          fecha_inicio: sector.fecha_inicio, 
-          fecha_termino: sector.fecha_termino, 
-          nro_ticket: sector.ticket, 
-          zona_id: sector.zona_id,
+          fecha_inicio: sector.fecha_inicio || f.fecha_inicio, 
+          fecha_termino: sector.fecha_termino || f.fecha_termino, 
+          nro_ticket: sector.ticket || f.nro_ticket, 
+          zona_id: sector.zona_id || f.zona_id,
           pabellones_total: sector.cantidad_pabellones || 0,
-          pabellones_limpiados: ''
+          // Mantener el valor de pabellones_limpiados si ya fue ingresado por el usuario
+          pabellones_limpiados: f.pabellones_limpiados || ''
         }));
       }
     }
@@ -247,6 +248,12 @@ export default function Planillas() {
         return;
       }
 
+      // Validar que la cantidad de pabellones trabajados no exceda la cantidad total
+      if (planillaData.pabellones_limpiados > planillaData.pabellones_total) {
+        setError('La cantidad de pabellones trabajados no puede exceder la cantidad total de pabellones del sector');
+        return;
+      }
+
       if (editingPlanilla) {
         await axios.put(`/planillas/${editingPlanilla}`, planillaData);
         setError('Planilla actualizada exitosamente');
@@ -301,6 +308,8 @@ export default function Planillas() {
   const handleCloseBarredores = () => {
     setPlanillaBarredoresOpen(false);
     setPlanillaIdSeleccionada(null);
+    // Actualizar la lista de planillas para reflejar los cambios
+    fetchPlanillas();
   };
 
   const handleOpenMaquinas = (planillaId) => {
@@ -311,6 +320,8 @@ export default function Planillas() {
   const handleCloseMaquinas = () => {
     setPlanillaMaquinasOpen(false);
     setPlanillaIdMaquinas(null);
+    // Actualizar la lista de planillas para reflejar los cambios
+    fetchPlanillas();
   };
 
   const handleOpenPabellones = (planillaId) => {
@@ -321,6 +332,8 @@ export default function Planillas() {
   const handleClosePabellones = () => {
     setPlanillaPabellonesOpen(false);
     setPlanillaIdPabellones(null);
+    // Actualizar la lista de planillas para reflejar los cambios en pabellones limpiados
+    fetchPlanillas();
   };
 
   const handleOpenDanos = (planillaId) => {
@@ -331,6 +344,8 @@ export default function Planillas() {
   const handleCloseDanos = () => {
     setPlanillaDanosOpen(false);
     setPlanillaIdDanos(null);
+    // Actualizar la lista de planillas para reflejar los cambios
+    fetchPlanillas();
   };
 
   // Funciones de utilidad
@@ -693,10 +708,13 @@ export default function Planillas() {
                 label="Cantidad de Pabellones"
                 type="number"
                 value={formData.pabellones_total}
-                onChange={(e) => setFormData({...formData, pabellones_total: e.target.value})}
                 InputLabelProps={{ shrink: true }}
-                helperText="Cantidad de pabellones del sector seleccionado."
-                disabled={!formData.sector_id}
+                helperText="Cantidad de pabellones del sector seleccionado (se actualiza automáticamente)."
+                disabled={true}
+                InputProps={{
+                  readOnly: true,
+                  style: { backgroundColor: '#f5f5f5' }
+                }}
               />
             </Grid>
             
@@ -706,14 +724,21 @@ export default function Planillas() {
                 label="Pabellones Trabajados"
                 type="number"
                 value={formData.pabellones_limpiados}
-                onChange={(e) => setFormData({...formData, pabellones_limpiados: e.target.value})}
-                InputLabelProps={{ shrink: true }}
-                helperText="Cantidad de pabellones en los que se trabajó."
-                disabled={!formData.pabellones_total}
-                inputProps={{
-                  min: 1,
-                  max: formData.pabellones_total || 999
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 0;
+                  const maxPabellones = parseInt(formData.pabellones_total) || 0;
+                  if (value <= maxPabellones) {
+                    setFormData({...formData, pabellones_limpiados: e.target.value});
+                  }
                 }}
+                InputLabelProps={{ shrink: true }}
+                helperText={`Cantidad de pabellones en los que se trabajó (máximo: ${formData.pabellones_total || 0}).`}
+                disabled={!formData.pabellones_total || formData.pabellones_total <= 0}
+                inputProps={{
+                  min: 0,
+                  max: formData.pabellones_total || 0
+                }}
+                error={parseInt(formData.pabellones_limpiados) > parseInt(formData.pabellones_total)}
               />
             </Grid>
             

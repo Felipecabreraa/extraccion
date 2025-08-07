@@ -40,7 +40,7 @@ const actualizarPlanilla = async (planillaId) => {
     console.log(`   - Pabellones limpiados: ${pabellonesLimpiados}`);
     console.log(`   - Metros cuadrados: ${sector.mt2}`);
     
-    return { pabellones_limpiados, mt2: sector.mt2 };
+    return { pabellones_limpiados: pabellonesLimpiados, mt2: sector.mt2 };
   } catch (error) {
     console.error(`❌ Error actualizando planilla ${planillaId}:`, error);
     throw error;

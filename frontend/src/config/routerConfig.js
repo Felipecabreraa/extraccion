@@ -1,9 +1,7 @@
-// Configuración para React Router v7
+// Configuración para React Router v6
 export const routerConfig = {
-  future: {
-    v7_startTransition: true,
-    v7_relativeSplatPath: true
-  }
+  // Configuración básica para React Router v6
+  basename: process.env.PUBLIC_URL || '/'
 };
 
 export default routerConfig; 

@@ -51,6 +51,12 @@ exports.listar = async (req, res) => {
       const registros = await PabellonMaquina.findAll({ where: { planilla_id: planilla.id } });
       const pabellonesLimpiados = new Set(registros.map(r => r.pabellon_id)).size;
       
+      // Actualizar el campo pabellones_limpiados en la base de datos si es diferente
+      if (planilla.pabellones_limpiados !== pabellonesLimpiados) {
+        await planilla.update({ pabellones_limpiados: pabellonesLimpiados });
+        console.log(`🔄 Actualizado pabellones_limpiados para planilla ${planilla.id}: ${pabellonesLimpiados}`);
+      }
+      
       return {
         ...planilla.toJSON(),
         supervisor_nombre: supervisor ? supervisor.nombre : '',

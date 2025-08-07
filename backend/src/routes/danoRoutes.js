@@ -6,11 +6,11 @@ const danoMetaController = require('../controllers/danoMetaController');
 const { authenticateToken, requireRole } = require('../middlewares/authMiddleware');
 
 // Rutas para CRUD de daños
-router.post('/', authenticateToken, requireRole(['admin', 'supervisor']), danoController.crear);
+router.post('/', authenticateToken, requireRole(['administrador', 'supervisor']), danoController.crear);
 router.get('/', authenticateToken, danoController.listar);
 router.get('/:id', authenticateToken, danoController.obtener);
-router.put('/:id', authenticateToken, requireRole(['admin', 'supervisor']), danoController.actualizar);
-router.delete('/:id', authenticateToken, requireRole(['admin']), danoController.eliminar);
+router.put('/:id', authenticateToken, requireRole(['administrador', 'supervisor']), danoController.actualizar);
+router.delete('/:id', authenticateToken, requireRole(['administrador']), danoController.eliminar);
 
 // Rutas para estadísticas de daños
 router.get('/stats', authenticateToken, danoStatsController.getDanoStats);

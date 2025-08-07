@@ -237,29 +237,29 @@ export default function Dashboard() {
     fetchDashboardData(false);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'activa': return 'success';
-      case 'pendiente': return 'warning';
-      case 'completada': return 'info';
-      case 'cancelada': return 'error';
-      case 'mantenimiento': return 'warning';
-      case 'inactiva': return 'error';
-      default: return 'default';
-    }
-  };
+  // const getStatusColor = (status) => {
+  //   switch (status) {
+  //     case 'activa': return 'success';
+  //     case 'pendiente': return 'warning';
+  //     case 'completada': return 'info';
+  //     case 'cancelada': return 'error';
+  //     case 'mantenimiento': return 'warning';
+  //     case 'inactiva': return 'error';
+  //     default: return 'default';
+  //   }
+  // };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'activa': return <CheckCircleIcon />;
-      case 'pendiente': return <WarningIcon />;
-      case 'completada': return <AssignmentIcon />;
-      case 'cancelada': return <ErrorIcon />;
-      case 'mantenimiento': return <BuildIcon />;
-      case 'inactiva': return <ErrorIcon />;
-      default: return <AssignmentIcon />;
-    }
-  };
+  // const getStatusIcon = (status) => {
+  //   switch (status) {
+  //     case 'activa': return <CheckCircleIcon />;
+  //     case 'pendiente': return <WarningIcon />;
+  //     case 'completada': return <AssignmentIcon />;
+  //     case 'cancelada': return <ErrorIcon />;
+  //     case 'mantenimiento': return <BuildIcon />;
+  //     case 'inactiva': return <ErrorIcon />;
+  //     default: return <AssignmentIcon />;
+  //   }
+  // };
 
   const getVariationColor = (variation) => {
     const num = parseFloat(variation);

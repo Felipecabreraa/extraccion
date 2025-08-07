@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Typography, Grid, Card, CardContent, Paper,
   CircularProgress, Alert, IconButton, Tooltip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, MenuItem, Select, FormControl, InputLabel,
+  MenuItem, Select, FormControl, InputLabel,
   LinearProgress, Chip
 } from '@mui/material';
 import {
@@ -21,7 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import DanosAcumuladosChart from '../components/DanosAcumuladosChart';
 
 export default function DanosMeta() {
-  const { usuario } = useAuth();
+  // const { usuario } = useAuth(); // Variable no utilizada
   const [metaData, setMetaData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,13 +33,15 @@ export default function DanosMeta() {
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 5 + i);
   const porcentajes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
 
-  const fetchMetaData = async (showLoading = true) => {
+  const fetchMetaData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) {
         setLoading(true);
       } else {
         setIsRefreshing(true);
       }
+      
+      console.log('🔍 Solicitando datos de metas con parámetros:', { selectedYear, selectedPorcentaje });
       
       const response = await axios.get('/danos/meta/stats/test', {
         params: {
@@ -48,21 +50,23 @@ export default function DanosMeta() {
         }
       });
       
+      console.log('✅ Datos recibidos:', response.data);
+      
       setMetaData(response.data);
       setLastUpdate(new Date());
       setError(null);
     } catch (err) {
-      console.error('Error fetching meta data:', err);
+      console.error('❌ Error fetching meta data:', err);
       setError('Error al cargar los datos de metas de daños');
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, [selectedYear, selectedPorcentaje]);
 
   useEffect(() => {
     fetchMetaData();
-  }, [selectedYear, selectedPorcentaje]);
+  }, [fetchMetaData]);
 
   const handleRefresh = () => {
     fetchMetaData(false);
@@ -88,6 +92,7 @@ export default function DanosMeta() {
   };
 
   if (loading) {
+    console.log('🔄 Componente en estado de carga...');
     return (
       <Box p={3} display="flex" justifyContent="center" alignItems="center" height={400}>
         <CircularProgress />
@@ -96,6 +101,7 @@ export default function DanosMeta() {
   }
 
   if (error) {
+    console.log('❌ Componente con error:', error);
     return (
       <Box p={3}>
         <Alert severity="error" action={
@@ -107,6 +113,15 @@ export default function DanosMeta() {
         </Alert>
       </Box>
     );
+  }
+
+  console.log('📊 Renderizando componente con datos:', metaData ? 'SÍ' : 'NO');
+  if (metaData) {
+    console.log('📊 Datos disponibles:', {
+      configuracion: metaData.configuracion,
+      datosAnioActual: metaData.datosAnioActual,
+      datosMensuales: metaData.datosMensuales?.length || 0
+    });
   }
 
   return (
@@ -276,6 +291,25 @@ export default function DanosMeta() {
              {/* Gráfico de Daños Acumulados */}
        {metaData && metaData.datosMensuales && (
          <Box mb={3}>
+           <Typography variant="h6" gutterBottom>
+             📈 Gráfico de Daños Acumulados
+           </Typography>
+           
+           {/* Componente de prueba simple */}
+           <Card sx={{ mb: 2 }}>
+             <CardContent>
+               <Typography variant="body2" color="textSecondary">
+                 Datos disponibles: {metaData.datosMensuales.length} meses
+               </Typography>
+               <Typography variant="body2" color="textSecondary">
+                 Meta anual: {metaData.configuracion?.metaAnual?.toLocaleString() || 'N/A'}
+               </Typography>
+               <Typography variant="body2" color="textSecondary">
+                 Real hasta ahora: {metaData.datosAnioActual?.totalRealHastaAhora?.toLocaleString() || 'N/A'}
+               </Typography>
+             </CardContent>
+           </Card>
+           
            <DanosAcumuladosChart data={metaData} />
          </Box>
        )}
