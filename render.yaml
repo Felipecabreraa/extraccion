@@ -3,7 +3,7 @@ services:
   - type: web
     name: extraccion-backend-test
     env: node
-    plan: free
+    plan: starter
     buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
     envVars:
@@ -26,11 +26,10 @@ services:
       - key: CORS_ORIGIN
         value: https://extraccion-frontend-test.onrender.com
 
-  # Frontend React
-  - type: web
+  # Frontend React (servicio estático)
+  - type: static
     name: extraccion-frontend-test
-    env: static
-    plan: free
+    plan: starter
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/build
     envVars:
