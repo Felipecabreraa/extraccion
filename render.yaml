@@ -29,8 +29,8 @@ services:
   - type: web
     name: extraccion-frontend-test
     env: static
-    buildCommand: cd frontend && npm install --audit=false && npm run build
-    staticPublishPath: frontend/build
+    buildCommand: cd frontend && node build-for-render.js
+    staticPublishPath: ./frontend/build
     envVars:
       - key: REACT_APP_API_URL
         value: https://extraccion-backend-test.onrender.com/api
