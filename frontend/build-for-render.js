@@ -8,6 +8,19 @@ console.log('🔨 Iniciando build del frontend para Render...');
 const currentDir = process.cwd();
 console.log('📁 Directorio actual:', currentDir);
 
+// Listar archivos y directorios para debugging
+console.log('📂 Contenido del directorio actual:');
+try {
+  const files = fs.readdirSync(currentDir);
+  files.forEach(file => {
+    const stats = fs.statSync(path.join(currentDir, file));
+    const type = stats.isDirectory() ? '📁' : '📄';
+    console.log(`  ${type} ${file}`);
+  });
+} catch (error) {
+  console.error('❌ Error listando archivos:', error.message);
+}
+
 // Verificar que existe el package.json
 const packageJsonPath = path.join(currentDir, 'package.json');
 if (!fs.existsSync(packageJsonPath)) {
@@ -15,10 +28,29 @@ if (!fs.existsSync(packageJsonPath)) {
   process.exit(1);
 }
 
-// Verificar que existe el directorio public
-const publicDir = path.join(currentDir, 'public');
-if (!fs.existsSync(publicDir)) {
-  console.error('❌ No se encontró el directorio public');
+console.log('✅ package.json encontrado');
+
+// Buscar el directorio public de forma más flexible
+let publicDir = null;
+const possiblePublicPaths = [
+  path.join(currentDir, 'public'),
+  path.join(currentDir, 'src', 'public'),
+  path.join(currentDir, '..', 'public'),
+  path.join(currentDir, '..', 'frontend', 'public')
+];
+
+for (const publicPath of possiblePublicPaths) {
+  if (fs.existsSync(publicPath)) {
+    publicDir = publicPath;
+    console.log(`✅ Directorio public encontrado en: ${publicPath}`);
+    break;
+  }
+}
+
+if (!publicDir) {
+  console.error('❌ No se encontró el directorio public en ninguna ubicación esperada');
+  console.log('🔍 Rutas verificadas:');
+  possiblePublicPaths.forEach(p => console.log(`  - ${p}`));
   process.exit(1);
 }
 
@@ -26,8 +58,17 @@ if (!fs.existsSync(publicDir)) {
 const indexHtmlPath = path.join(publicDir, 'index.html');
 if (!fs.existsSync(indexHtmlPath)) {
   console.error('❌ No se encontró index.html en public/');
+  console.log('📂 Contenido del directorio public:');
+  try {
+    const publicFiles = fs.readdirSync(publicDir);
+    publicFiles.forEach(file => console.log(`  📄 ${file}`));
+  } catch (error) {
+    console.error('Error listando archivos de public:', error.message);
+  }
   process.exit(1);
 }
+
+console.log('✅ index.html encontrado');
 
 console.log('✅ Verificaciones completadas, iniciando build...');
 
