@@ -3,7 +3,7 @@ services:
   - type: web
     name: extraccion-backend-test
     env: node
-    buildCommand: cd backend && npm install && npx sequelize-cli db:migrate || echo "Migraciones completadas (algunas pueden haber fallado por columnas existentes)"
+    buildCommand: cd backend && npm install && node migrate-safe.js
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
