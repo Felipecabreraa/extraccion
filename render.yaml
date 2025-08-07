@@ -3,7 +3,7 @@ services:
   - type: web
     name: extraccion-backend-test
     env: node
-    buildCommand: cd backend && npm install
+    buildCommand: cd backend && npm install && npx sequelize-cli db:migrate
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
@@ -29,7 +29,7 @@ services:
   - type: web
     name: extraccion-frontend-test
     env: static
-    buildCommand: cd frontend && npm install && npm run build
+    buildCommand: cd frontend && npm install --audit=false && npm run build
     staticPublishPath: ./frontend/build
     envVars:
       - key: REACT_APP_API_URL
