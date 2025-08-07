@@ -30,16 +30,10 @@ if (!fs.existsSync(packageJsonPath)) {
 
 console.log('✅ package.json encontrado');
 
-// Buscar el directorio public desde la raíz del proyecto
+// Buscar el directorio public - debe estar en el directorio frontend actual
 let publicDir = null;
-const projectRoot = path.join(currentDir, '..', '..'); // Subir dos niveles desde frontend
-console.log('🔍 Buscando desde la raíz del proyecto:', projectRoot);
-
 const possiblePublicPaths = [
-  path.join(currentDir, 'public'), // Desde frontend/
-  path.join(currentDir, '..', 'public'), // Desde src/
-  path.join(projectRoot, 'frontend', 'public'), // Desde raíz/frontend/public
-  path.join(projectRoot, 'public'), // Desde raíz/public
+  path.join(currentDir, 'public'), // Desde frontend/public
   path.join(currentDir, 'src', 'public'), // Desde frontend/src/public
 ];
 
@@ -56,19 +50,29 @@ for (const publicPath of possiblePublicPaths) {
 if (!publicDir) {
   console.error('❌ No se encontró el directorio public en ninguna ubicación esperada');
   
-  // Intentar listar el contenido de directorios padre para debugging
-  console.log('🔍 Explorando directorios padre:');
+  // Intentar listar el contenido del directorio actual para debugging
+  console.log('🔍 Explorando directorio actual más detalladamente:');
   try {
-    const parentDir = path.join(currentDir, '..');
-    console.log(`📁 Contenido de ${parentDir}:`);
-    const parentFiles = fs.readdirSync(parentDir);
-    parentFiles.forEach(file => {
-      const stats = fs.statSync(path.join(parentDir, file));
-      const type = stats.isDirectory() ? '📁' : '📄';
-      console.log(`  ${type} ${file}`);
+    const files = fs.readdirSync(currentDir);
+    files.forEach(file => {
+      const filePath = path.join(currentDir, file);
+      const stats = fs.statSync(filePath);
+      if (stats.isDirectory()) {
+        console.log(`📁 Explorando directorio: ${file}`);
+        try {
+          const subFiles = fs.readdirSync(filePath);
+          subFiles.forEach(subFile => {
+            const subStats = fs.statSync(path.join(filePath, subFile));
+            const type = subStats.isDirectory() ? '📁' : '📄';
+            console.log(`  ${type} ${subFile}`);
+          });
+        } catch (error) {
+          console.log(`  ❌ Error explorando ${file}:`, error.message);
+        }
+      }
     });
   } catch (error) {
-    console.error('Error explorando directorio padre:', error.message);
+    console.error('Error explorando directorio actual:', error.message);
   }
   
   process.exit(1);
