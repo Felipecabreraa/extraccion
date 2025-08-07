@@ -30,69 +30,85 @@ if (!fs.existsSync(packageJsonPath)) {
 
 console.log('✅ package.json encontrado');
 
-// Buscar el directorio public - debe estar en el directorio frontend actual
-let publicDir = null;
-const possiblePublicPaths = [
-  path.join(currentDir, 'public'), // Desde frontend/public
-  path.join(currentDir, 'src', 'public'), // Desde frontend/src/public
-];
+// Buscar o crear el directorio public
+let publicDir = path.join(currentDir, 'public');
 
-console.log('🔍 Verificando rutas:');
-for (const publicPath of possiblePublicPaths) {
-  console.log(`  - ${publicPath}`);
-  if (fs.existsSync(publicPath)) {
-    publicDir = publicPath;
-    console.log(`✅ Directorio public encontrado en: ${publicPath}`);
-    break;
-  }
-}
-
-if (!publicDir) {
-  console.error('❌ No se encontró el directorio public en ninguna ubicación esperada');
-  
-  // Intentar listar el contenido del directorio actual para debugging
-  console.log('🔍 Explorando directorio actual más detalladamente:');
+if (!fs.existsSync(publicDir)) {
+  console.log('📁 Creando directorio public...');
   try {
-    const files = fs.readdirSync(currentDir);
-    files.forEach(file => {
-      const filePath = path.join(currentDir, file);
-      const stats = fs.statSync(filePath);
-      if (stats.isDirectory()) {
-        console.log(`📁 Explorando directorio: ${file}`);
-        try {
-          const subFiles = fs.readdirSync(filePath);
-          subFiles.forEach(subFile => {
-            const subStats = fs.statSync(path.join(filePath, subFile));
-            const type = subStats.isDirectory() ? '📁' : '📄';
-            console.log(`  ${type} ${subFile}`);
-          });
-        } catch (error) {
-          console.log(`  ❌ Error explorando ${file}:`, error.message);
-        }
-      }
-    });
+    fs.mkdirSync(publicDir, { recursive: true });
+    console.log('✅ Directorio public creado');
   } catch (error) {
-    console.error('Error explorando directorio actual:', error.message);
+    console.error('❌ Error creando directorio public:', error.message);
+    process.exit(1);
   }
-  
-  process.exit(1);
+} else {
+  console.log('✅ Directorio public encontrado');
 }
 
-// Verificar que existe index.html
+// Verificar o crear index.html
 const indexHtmlPath = path.join(publicDir, 'index.html');
 if (!fs.existsSync(indexHtmlPath)) {
-  console.error('❌ No se encontró index.html en public/');
-  console.log('📂 Contenido del directorio public:');
+  console.log('📄 Creando index.html...');
+  const indexHtmlContent = `<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Sistema de Extracción - Gestión de datos y reportes"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <title>Sistema de Extracción</title>
+  </head>
+  <body>
+    <noscript>Necesitas habilitar JavaScript para ejecutar esta aplicación.</noscript>
+    <div id="root"></div>
+  </body>
+</html>`;
+
   try {
-    const publicFiles = fs.readdirSync(publicDir);
-    publicFiles.forEach(file => console.log(`  📄 ${file}`));
+    fs.writeFileSync(indexHtmlPath, indexHtmlContent);
+    console.log('✅ index.html creado');
   } catch (error) {
-    console.error('Error listando archivos de public:', error.message);
+    console.error('❌ Error creando index.html:', error.message);
+    process.exit(1);
   }
-  process.exit(1);
+} else {
+  console.log('✅ index.html encontrado');
 }
 
-console.log('✅ index.html encontrado');
+// Crear manifest.json si no existe
+const manifestPath = path.join(publicDir, 'manifest.json');
+if (!fs.existsSync(manifestPath)) {
+  console.log('📄 Creando manifest.json...');
+  const manifestContent = `{
+  "short_name": "Extracción",
+  "name": "Sistema de Extracción",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}`;
+
+  try {
+    fs.writeFileSync(manifestPath, manifestContent);
+    console.log('✅ manifest.json creado');
+  } catch (error) {
+    console.error('❌ Error creando manifest.json:', error.message);
+  }
+}
 
 console.log('✅ Verificaciones completadas, iniciando build...');
 
