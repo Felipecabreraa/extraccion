@@ -1,14 +1,7 @@
 services:
-  # Base de datos MySQL
-  - type: pserv
-    name: extraccion-db
-    env: mysql
-    plan: free
-    ipAllowList: []
-
-  # Backend API
+  # Backend API (conectado a BD existente)
   - type: web
-    name: extraccion-backend
+    name: extraccion-backend-test
     env: node
     plan: free
     buildCommand: cd backend && npm install
@@ -19,39 +12,29 @@ services:
       - key: PORT
         value: 10000
       - key: DB_HOST
-        fromDatabase:
-          name: extraccion-db
-          property: host
+        value: trn.cl
       - key: DB_USER
-        fromDatabase:
-          name: extraccion-db
-          property: user
+        value: trn_felipe
       - key: DB_PASSWORD
-        fromDatabase:
-          name: extraccion-db
-          property: password
+        value: RioNegro2025@
       - key: DB_NAME
-        fromDatabase:
-          name: extraccion-db
-          property: name
+        value: trn_extraccion_test
       - key: DB_PORT
-        fromDatabase:
-          name: extraccion-db
-          property: port
+        value: 3306
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        value: https://extraccion-frontend.onrender.com
+        value: https://extraccion-frontend-test.onrender.com
 
   # Frontend React
   - type: web
-    name: extraccion-frontend
+    name: extraccion-frontend-test
     env: static
     plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/build
     envVars:
       - key: REACT_APP_API_URL
-        value: https://extraccion-backend.onrender.com/api
+        value: https://extraccion-backend-test.onrender.com/api
       - key: REACT_APP_ENV
         value: production 
