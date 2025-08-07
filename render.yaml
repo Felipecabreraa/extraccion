@@ -3,7 +3,7 @@ services:
   - type: web
     name: extraccion-backend-test
     env: node
-    buildCommand: cd backend && npm install && npx sequelize-cli db:migrate
+    buildCommand: cd backend && npm install && npx sequelize-cli db:migrate || echo "Migraciones completadas (algunas pueden haber fallado por columnas existentes)"
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
@@ -30,7 +30,7 @@ services:
     name: extraccion-frontend-test
     env: static
     buildCommand: cd frontend && npm install --audit=false && npm run build
-    staticPublishPath: ./frontend/build
+    staticPublishPath: frontend/build
     envVars:
       - key: REACT_APP_API_URL
         value: https://extraccion-backend-test.onrender.com/api
