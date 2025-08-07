@@ -3,7 +3,7 @@ services:
   - type: web
     name: extraccion-backend-test
     env: node
-    plan: free
+    plan: hobby
     buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
     envVars:
@@ -30,7 +30,7 @@ services:
   - type: web
     name: extraccion-frontend-test
     env: static
-    plan: free
+    plan: hobby
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/build
     envVars:
