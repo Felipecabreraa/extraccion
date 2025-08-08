@@ -1,15 +1,13 @@
 services:
-  # Backend API (conectado a BD existente)
   - type: web
     name: extraccion-backend-test
     env: node
-    buildCommand: cd backend && npm install && node migrate-safe.js
-    startCommand: cd backend && npm start
+    plan: free
+    buildCommand: node migrate-safe.js
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
       - key: DB_HOST
         value: trn.cl
       - key: DB_USER
@@ -21,22 +19,24 @@ services:
       - key: DB_PORT
         value: 3306
       - key: JWT_SECRET
-        generateValue: true
+        value: tu_jwt_secret_super_seguro_2024
       - key: CORS_ORIGIN
         value: https://extraccion-frontend-test.onrender.com
+      - key: PORT
+        value: 3001
 
-  # Frontend React (servicio web estático)
   - type: web
     name: extraccion-frontend-test
     env: static
-    buildCommand: cd frontend && node build-for-render.js
-    staticPublishPath: ./frontend/build
-    routes:
-      - type: rewrite
-        source: "/*"
-        destination: "/index.html"
+    plan: free
+    buildCommand: node build-simple.js
+    staticPublishPath: ./build
     envVars:
       - key: REACT_APP_API_URL
         value: https://extraccion-backend-test.onrender.com/api
-      - key: REACT_APP_ENV
-        value: production 
+      - key: NODE_ENV
+        value: production
+    routes:
+      - type: rewrite
+        source: "/*"
+        destination: "/index.html" 
