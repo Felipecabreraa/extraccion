@@ -1,8 +1,8 @@
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-console.log('🔨 Iniciando build simple del frontend...');
+console.log('🔨 Iniciando build directo del frontend...');
 
 // Verificar que estamos en el directorio correcto
 const currentDir = process.cwd();
@@ -47,46 +47,54 @@ if (!fs.existsSync(indexHtmlPath)) {
 
 console.log('✅ Preparación completada');
 
-// Ejecutar build con configuración correcta
-console.log('🔨 Ejecutando build...');
-
 // Configurar variables de entorno
-process.env.CI = 'false';
-process.env.GENERATE_SOURCEMAP = 'false';
+const env = {
+  ...process.env,
+  CI: 'false',
+  GENERATE_SOURCEMAP: 'false',
+  NODE_ENV: 'production'
+};
 
-const buildCommand = 'npm run build';
+console.log('🔨 Ejecutando build con variables de entorno:', env);
 
-exec(buildCommand, { 
+// Ejecutar build usando spawn para mejor control
+const buildProcess = spawn('npm', ['run', 'build'], {
   cwd: currentDir,
-  env: { ...process.env, CI: 'false', GENERATE_SOURCEMAP: 'false' }
-}, (error, stdout, stderr) => {
-  if (error) {
-    console.error('❌ Error durante el build:');
-    console.error('Error:', error.message);
-    if (stderr) {
-      console.error('stderr:', stderr);
+  env: env,
+  stdio: 'pipe'
+});
+
+buildProcess.stdout.on('data', (data) => {
+  console.log('📤 stdout:', data.toString());
+});
+
+buildProcess.stderr.on('data', (data) => {
+  console.log('📤 stderr:', data.toString());
+});
+
+buildProcess.on('close', (code) => {
+  if (code === 0) {
+    console.log('✅ Build completado exitosamente');
+    
+    // Verificar que se creó el directorio build
+    const buildDir = path.join(currentDir, 'build');
+    if (fs.existsSync(buildDir)) {
+      console.log('✅ Directorio build creado');
+      const files = fs.readdirSync(buildDir);
+      console.log('📁 Archivos en build:', files);
+    } else {
+      console.error('❌ No se creó el directorio build');
+      process.exit(1);
     }
-    if (stdout) {
-      console.error('stdout:', stdout);
-    }
-    process.exit(1);
-  }
-  
-  console.log('✅ Build completado exitosamente');
-  if (stdout) {
-    console.log('stdout:', stdout);
-  }
-  
-  // Verificar que se creó el directorio build
-  const buildDir = path.join(currentDir, 'build');
-  if (fs.existsSync(buildDir)) {
-    console.log('✅ Directorio build creado');
-    const files = fs.readdirSync(buildDir);
-    console.log('📁 Archivos en build:', files);
+    
+    process.exit(0);
   } else {
-    console.error('❌ No se creó el directorio build');
-    process.exit(1);
+    console.error(`❌ Build falló con código: ${code}`);
+    process.exit(code);
   }
-  
-  process.exit(0);
+});
+
+buildProcess.on('error', (error) => {
+  console.error('❌ Error ejecutando build:', error.message);
+  process.exit(1);
 }); 

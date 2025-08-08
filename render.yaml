@@ -29,13 +29,17 @@ services:
     name: extraccion-frontend-test
     env: static
     plan: free
-    buildCommand: node build-simple.js
+    buildCommand: node build-direct.js
     staticPublishPath: ./build
     envVars:
       - key: REACT_APP_API_URL
         value: https://extraccion-backend-test.onrender.com/api
       - key: NODE_ENV
         value: production
+      - key: CI
+        value: false
+      - key: GENERATE_SOURCEMAP
+        value: false
     routes:
       - type: rewrite
         source: "/*"
