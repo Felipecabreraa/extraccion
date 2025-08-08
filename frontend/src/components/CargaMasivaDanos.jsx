@@ -1,27 +1,34 @@
 import React, { useState } from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Box,
   Button,
   Typography,
-  Box,
   Alert,
-  AlertTitle,
+  CircularProgress,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
+  IconButton,
+  Tooltip,
   Chip,
-  CircularProgress
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid
 } from '@mui/material';
-import { Upload, CheckCircle, Error } from '@mui/icons-material';
+import { Upload as UploadIcon, Delete as DeleteIcon, Visibility as ViewIcon, Edit as EditIcon } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
-import axios from 'axios';
+import api from '../api/axios'; // Usar la instancia configurada
 
 const CargaMasivaDanos = ({ open, onClose, onSuccess }) => {
   const [file, setFile] = useState(null);
@@ -90,7 +97,7 @@ const CargaMasivaDanos = ({ open, onClose, onSuccess }) => {
 
     try {
       const promises = data.map(row => 
-        axios.post('/api/danos-acumulados/registro', {
+        api.post('/danos-acumulados/registro', {
           anio: parseInt(row.anio),
           mes: parseInt(row.mes),
           valor_real: parseInt(row.valor_real) || 0,
@@ -137,7 +144,7 @@ const CargaMasivaDanos = ({ open, onClose, onSuccess }) => {
           <Button
             variant="outlined"
             component="label"
-            startIcon={<Upload />}
+            startIcon={<UploadIcon />}
             disabled={loading}
           >
             Seleccionar Archivo Excel
@@ -220,7 +227,7 @@ const CargaMasivaDanos = ({ open, onClose, onSuccess }) => {
           onClick={handleUpload}
           variant="contained"
           disabled={!data.length || loading}
-          startIcon={loading ? <CircularProgress size={16} /> : <Upload />}
+          startIcon={loading ? <CircularProgress size={16} /> : <UploadIcon />}
         >
           {loading ? 'Procesando...' : 'Cargar Datos'}
         </Button>

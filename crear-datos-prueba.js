@@ -12,15 +12,18 @@ async function crearDatosPrueba() {
       port: 3306
     });
 
-    // Crear usuario de prueba
+    // Crear usuario de prueba con contraseña más segura
     const [usuarios] = await connection.execute('SELECT COUNT(*) as total FROM usuario');
     if (usuarios[0].total === 0) {
       console.log('👤 Creando usuario de prueba...');
+      // Contraseña: Test2024! (más segura)
       await connection.execute(`
         INSERT INTO usuario (nombre, apellido, email, password, rol, activo) 
         VALUES ('Admin', 'Test', 'admin@test.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 1)
       `);
       console.log('✅ Usuario de prueba creado');
+      console.log('📧 Email: admin@test.com');
+      console.log('🔑 Contraseña: Test2024!');
     }
 
     // Crear barredores de prueba

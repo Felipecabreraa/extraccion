@@ -1,7 +1,7 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import axios from '../api/axios';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import api from '../api/axios'; // Importar la instancia configurada de axios
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -20,21 +20,19 @@ export function AuthProvider({ children }) {
   const logout = () => {
     setUsuario(null);
     setToken(null);
-    setError(null);
     localStorage.removeItem('token');
-    sessionStorage.clear();
   };
 
   // Verificar token al cargar
   useEffect(() => {
-    const verifyToken = async () => {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
+    const verifyToken = async () => {
       try {
-        const response = await axios.get('/auth/verify');
+        const response = await api.get('/auth/verify'); // Usar la instancia configurada
         setUsuario(response.data.usuario);
         setError(null);
       } catch (err) {
@@ -50,7 +48,7 @@ export function AuthProvider({ children }) {
 
   // Configurar interceptor para manejar errores de autenticación
   useEffect(() => {
-    const interceptor = axios.interceptors.response.use(
+    const interceptor = api.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
@@ -61,7 +59,7 @@ export function AuthProvider({ children }) {
     );
 
     return () => {
-      axios.interceptors.response.eject(interceptor);
+      api.interceptors.response.eject(interceptor);
     };
   }, []);
 
@@ -70,7 +68,7 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       
-      const response = await axios.post('/auth/login', credentials);
+      const response = await api.post('/auth/login', credentials); // Usar la instancia configurada
       const { token: newToken, usuario: userData } = response.data;
       
       setUsuario(userData);
@@ -92,7 +90,7 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       
-      const response = await axios.post('/auth/register', userData);
+      const response = await api.post('/auth/register', userData); // Usar la instancia configurada
       return { success: true, data: response.data };
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Error en el registro';
@@ -108,7 +106,7 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       
-      const response = await axios.put('/auth/profile', profileData);
+      const response = await api.put('/auth/profile', profileData); // Usar la instancia configurada
       setUsuario(response.data.usuario);
       
       return { success: true, data: response.data };
@@ -126,7 +124,7 @@ export function AuthProvider({ children }) {
       setLoading(true);
       setError(null);
       
-      const response = await axios.put('/auth/change-password', passwordData);
+      const response = await api.put('/auth/change-password', passwordData); // Usar la instancia configurada
       return { success: true, data: response.data };
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Error cambiando contraseña';

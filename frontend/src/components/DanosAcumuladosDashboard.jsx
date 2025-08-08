@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios'; // Usar la instancia configurada
 import { 
   Card, 
   CardContent, 
@@ -56,8 +56,8 @@ const DanosAcumuladosDashboard = () => {
       setError(null);
       
       const [datosResponse, resumenResponse] = await Promise.all([
-        axios.get(`/api/danos-acumulados?anio=${anioSeleccionado}`),
-        axios.get(`/api/danos-acumulados/resumen-ejecutivo?anio=${anioSeleccionado}`)
+        api.get(`/danos-acumulados?anio=${anioSeleccionado}`),
+        api.get(`/danos-acumulados/resumen-ejecutivo?anio=${anioSeleccionado}`)
       ]);
       
       setDatos(datosResponse.data);
