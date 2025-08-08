@@ -128,6 +128,21 @@ exec('npm install --audit=false && CI=false npm run build', (error, stdout, stde
       console.log('✅ Directorio build creado correctamente');
       const files = fs.readdirSync(buildDir);
       console.log('📁 Archivos en build:', files);
+      
+      // Crear archivo de configuración para Render
+      const renderConfigPath = path.join(buildDir, 'render.yaml');
+      const renderConfig = `routes:
+  - type: rewrite
+    source: "/*"
+    destination: "/index.html"`;
+      
+      try {
+        fs.writeFileSync(renderConfigPath, renderConfig);
+        console.log('✅ Archivo render.yaml creado en build/');
+      } catch (error) {
+        console.error('❌ Error creando render.yaml:', error.message);
+      }
+      
     } else {
       console.error('❌ No se creó el directorio build');
       process.exit(1);

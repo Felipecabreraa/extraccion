@@ -95,6 +95,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Servir archivos estáticos del frontend en producción
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../public')));
+  
+  // Manejar todas las rutas del frontend (SPA)
+  app.get('*', (req, res) => {
+    // Si la ruta no es de la API, servir el index.html del frontend
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(__dirname, '../public/index.html'));
+    }
+  });
 }
 
 // Rutas de salud y estado
