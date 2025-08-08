@@ -32,6 +32,8 @@ export function AuthProvider({ children }) {
 
     const verifyToken = async () => {
       try {
+        // Despertar backend antes de verificar (Render puede estar en cold start)
+        await pingHealthWithRetry();
         const response = await api.get('/auth/verify'); // Usar la instancia configurada
         setUsuario(response.data.usuario);
         setError(null);
@@ -134,6 +136,23 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }
   }, []);
+
+  // --- Helpers ---
+  async function pingHealthWithRetry() {
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        await api.get('/health'); // backend expone /api/health
+        return;
+      } catch (e) {
+        const isLast = attempt === maxAttempts;
+        if (isLast) throw e;
+        // backoff exponencial hasta 2s
+        const delay = Math.min(500 * 2 ** (attempt - 1), 2000);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
 
   const clearError = useCallback(() => {
     setError(null);
