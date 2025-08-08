@@ -4,6 +4,7 @@ import {
   Button,
   Typography,
   Alert,
+  AlertTitle,
   CircularProgress,
   Paper,
   Table,
@@ -26,7 +27,7 @@ import {
   MenuItem,
   Grid
 } from '@mui/material';
-import { Upload as UploadIcon, Delete as DeleteIcon, Visibility as ViewIcon, Edit as EditIcon } from '@mui/icons-material';
+import { Upload as UploadIcon, Delete as DeleteIcon, Visibility as ViewIcon, Edit as EditIcon, CheckCircle } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import api from '../api/axios'; // Usar la instancia configurada
 
