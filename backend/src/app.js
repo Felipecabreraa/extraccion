@@ -94,14 +94,33 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Servir archivos estáticos del frontend en producción
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../public')));
-  
-  // Manejar todas las rutas del frontend (SPA)
-  app.get('*', (req, res) => {
-    // Si la ruta no es de la API, servir el index.html del frontend
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(__dirname, '../public/index.html'));
-    }
+  // Solo servir archivos estáticos si el directorio existe
+  const publicPath = path.join(__dirname, '../public');
+  if (require('fs').existsSync(publicPath)) {
+    app.use(express.static(publicPath));
+    
+    // Manejar todas las rutas del frontend (SPA)
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(publicPath, 'index.html'));
+    });
+  } else {
+    // Si no existe el directorio public, solo manejar rutas de API
+    app.get('/', (req, res) => {
+      res.json({ 
+        message: 'API Backend funcionando correctamente',
+        version: '1.0.0',
+        environment: process.env.NODE_ENV
+      });
+    });
+  }
+} else {
+  // En desarrollo, solo manejar rutas de API
+  app.get('/', (req, res) => {
+    res.json({ 
+      message: 'API Backend funcionando correctamente',
+      version: '1.0.0',
+      environment: process.env.NODE_ENV
+    });
   });
 }
 
@@ -165,16 +184,26 @@ app.use('/api/operadores', operadorRoutes);
 app.use('/api/pabellones', pabellonRoutes);
 app.use('/api/danos', danoRoutes);
 app.use('/api/zonas', zonaRoutes);
-app.use('/api/zonas-carga-masiva', zonaCargaMasivaRoutes);
+app.use('/api/zona-carga-masiva', zonaCargaMasivaRoutes);
 app.use('/api/sectores', sectorRoutes);
-app.use('/api/barredores-catalogo', barredorCatalogoRoutes);
-app.use('/api/maquina_planilla', maquinaPlanillaRoutes);
+app.use('/api/barredor-catalogo', barredorCatalogoRoutes);
+app.use('/api/maquina-planilla', maquinaPlanillaRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/pabellon_maquina', pabellonMaquinaRoutes);
+app.use('/api/pabellon-maquina', pabellonMaquinaRoutes);
 app.use('/api/bulk-upload', bulkUploadRoutes);
 app.use('/api/danos-historicos', danoHistoricoRoutes);
 app.use('/api/metros-superficie', metrosSuperficieRoutes);
 app.use('/api/danos-acumulados', danosAcumuladosRoutes);
+
+// Ruta de health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK',
+    message: 'Backend funcionando correctamente',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV
+  });
+});
 
 // RUTA DE PRUEBA DIRECTA (sin middleware)
 app.get('/api/test-direct', (req, res) => {
