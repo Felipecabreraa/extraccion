@@ -8,7 +8,7 @@ services:
       npm ci --only=production
       npm install -g sequelize-cli
       npx sequelize-cli db:migrate || echo "Migraciones completadas o ya existentes"
-    startCommand: cd backend && npm start
+    startCommand: cd backend && node start-render.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -27,7 +27,7 @@ services:
       - key: CORS_ORIGIN
         value: https://extraccion-frontend-test.onrender.com
       - key: PORT
-        value: 10000
+        value: 3000
     healthCheckPath: /health
     autoDeploy: true
 

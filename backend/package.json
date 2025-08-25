@@ -9,6 +9,7 @@
     "test:ci": "jest --ci --coverage --watchAll=false",
     "dev": "nodemon src/app.js",
     "start": "node src/app.js",
+    "start:render": "node start-render.js",
     "build": "exit 0",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix"

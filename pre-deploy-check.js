@@ -17,12 +17,12 @@ try {
   const renderConfig = fs.readFileSync('render.yaml', 'utf8');
   
   // Verificar que tenga las configuraciones correctas
-  const requiredConfigs = [
-    'PORT: 10000',
-    'healthCheckPath: /health',
-    'autoDeploy: true',
-    'npm ci --only=production'
-  ];
+     const requiredConfigs = [
+     'PORT: 3000',
+     'healthCheckPath: /health',
+     'autoDeploy: true',
+     'npm ci --only=production'
+   ];
   
   const missingConfigs = requiredConfigs.filter(config => !renderConfig.includes(config));
   
