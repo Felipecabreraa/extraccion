@@ -59,9 +59,17 @@ async function startServer() {
         activo: true
       });
       console.log('✅ Usuario admin@admin.com creado');
-    } else {
-      console.log('✅ Usuario admin@admin.com ya existe');
-    }
+         } else {
+       console.log('✅ Usuario admin@admin.com ya existe');
+     }
+     
+     // Debug de autenticación
+     console.log('🔍 Ejecutando debug de autenticación...');
+     require('./debug-auth.js');
+     
+     // Configurar Puppeteer
+     console.log('🔧 Configurando Puppeteer...');
+     require('./fix-puppeteer.js');
     
     // Iniciar servidor
     app.listen(PORT, () => {
