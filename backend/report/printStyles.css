@@ -1,0 +1,218 @@
+/* Estilos de impresión para PDF - Generador de Reportes */
+
+@media print {
+  /* Ocultar elementos no necesarios para impresión */
+  .no-print,
+  .navbar,
+  .sidebar,
+  .btn,
+  .button,
+  .tooltip,
+  .modal,
+  .dropdown,
+  .menu,
+  .header-actions,
+  .footer-actions {
+    display: none !important;
+  }
+
+  /* Configuración general de página */
+  body {
+    margin: 0;
+    padding: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #000;
+    background: white;
+  }
+
+  /* Evitar cortes feos */
+  .avoid-break {
+    page-break-inside: avoid;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  /* Expandir contenedores */
+  .container,
+  .main-content,
+  .report-container {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Tipografías legibles */
+  h1, h2, h3, h4, h5, h6 {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 10px 0 5px 0;
+    page-break-after: avoid;
+  }
+
+  h1 { font-size: 18px; }
+  h2 { font-size: 16px; }
+  h3 { font-size: 14px; }
+
+  /* Tablas optimizadas para impresión */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    page-break-inside: avoid;
+  }
+
+  th, td {
+    border: 1px solid #000;
+    padding: 6px 8px;
+    text-align: left;
+    font-size: 10px;
+  }
+
+  th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold;
+  }
+
+  /* Gráficos y visualizaciones */
+  .chart-container,
+  .graph-container {
+    page-break-inside: avoid;
+    margin: 15px 0;
+  }
+
+  /* Tarjetas y contenedores */
+  .card,
+  .info-card,
+  .stat-card {
+    page-break-inside: avoid;
+    border: 1px solid #ddd;
+    margin: 10px 0;
+    padding: 10px;
+  }
+
+  /* Colores y contrastes */
+  .text-muted { color: #666 !important; }
+  .text-success { color: #28a745 !important; }
+  .text-danger { color: #dc3545 !important; }
+  .text-warning { color: #ffc107 !important; }
+  .text-info { color: #17a2b8 !important; }
+
+  /* Márgenes y espaciado */
+  .section {
+    margin-bottom: 20px;
+    page-break-inside: avoid;
+  }
+
+  .header {
+    margin-bottom: 30px;
+    text-align: center;
+  }
+
+  .footer {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 10px;
+  }
+
+  /* Grid y flexbox */
+  .grid,
+  .flex {
+    display: block !important;
+  }
+
+  .grid > *,
+  .flex > * {
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  /* Imágenes y logos */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .logo {
+    max-width: 80px;
+    height: auto;
+  }
+
+  /* Progreso y barras */
+  .progress-bar {
+    border: 1px solid #000;
+    height: 20px;
+    background: #f0f0f0;
+  }
+
+  .progress-fill {
+    background: #007bff;
+    height: 100%;
+  }
+
+  /* Listas */
+  ul, ol {
+    margin: 10px 0;
+    padding-left: 20px;
+  }
+
+  li {
+    margin-bottom: 5px;
+  }
+
+  /* Enlaces */
+  a {
+    color: #000;
+    text-decoration: none;
+  }
+
+  /* Formularios */
+  input, select, textarea {
+    border: 1px solid #000;
+    padding: 4px;
+    font-size: 10px;
+  }
+
+  /* Responsive */
+  @page {
+    size: A4;
+    margin: 15mm 10mm;
+  }
+
+  /* Orientación horizontal */
+  @page landscape {
+    size: A4 landscape;
+    margin: 10mm 15mm;
+  }
+}
+
+/* Estilos adicionales para mejor legibilidad */
+@media print {
+  /* Mejorar contraste */
+  * {
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Asegurar que los colores se impriman */
+  .bg-primary { background-color: #007bff !important; }
+  .bg-success { background-color: #28a745 !important; }
+  .bg-danger { background-color: #dc3545 !important; }
+  .bg-warning { background-color: #ffc107 !important; }
+  .bg-info { background-color: #17a2b8 !important; }
+
+  /* Sombras y efectos */
+  .shadow,
+  .box-shadow {
+    box-shadow: none !important;
+  }
+
+  /* Animaciones */
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

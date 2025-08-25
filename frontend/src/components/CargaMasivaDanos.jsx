@@ -13,21 +13,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
-  Tooltip,
   Chip,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Grid
+  DialogActions
 } from '@mui/material';
-import { Upload as UploadIcon, Delete as DeleteIcon, Visibility as ViewIcon, Edit as EditIcon, CheckCircle } from '@mui/icons-material';
+import { Upload as UploadIcon, CheckCircle } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import api from '../api/axios'; // Usar la instancia configurada
 

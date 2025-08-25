@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { 
   Card, 
@@ -33,10 +33,8 @@ import {
 import { 
   Event, 
   TrendingUp, 
-  AttachMoney, 
   Warning, 
   CheckCircle, 
-  Cancel,
   Edit,
   Add,
   Upload,
@@ -103,7 +101,7 @@ const DanosAcumulados = () => {
   };
 
   // Cargar datos principales
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -125,7 +123,7 @@ const DanosAcumulados = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [anioSeleccionado]);
 
   // Crear/actualizar registro
   const crearRegistro = async () => {
@@ -247,7 +245,7 @@ const DanosAcumulados = () => {
 
   useEffect(() => {
     cargarDatos();
-  }, [anioSeleccionado]);
+  }, [anioSeleccionado, cargarDatos]);
 
   if (loading) {
     return (
@@ -275,13 +273,21 @@ const DanosAcumulados = () => {
   // Preparar datos para gráficos
   const datosGrafico = datos?.datos_grafico || [];
   console.log('📊 Datos gráfico preparados:', datosGrafico);
+  console.log('🔄 Ajuste dinámico:', datos?.ajuste_dinamico);
   
-  const datosLinea = datosGrafico.map(mes => ({
-    mes: mes.nombreMes,
-    real: mes.real_acumulado,
-    ppto: mes.ppto_acumulado,
-    anioAnterior: mes.anio_ant_acumulado
-  }));
+  // Filtrar datos para la línea roja (Real Acumulado) solo hasta el mes actual
+  const mesLimiteReal = datos?.estado_datos?.mes_limite_real || 12;
+  
+  const datosLinea = datosGrafico.map((mes, index) => {
+    const numeroMes = index + 1; // Enero = 1, Febrero = 2, etc.
+    
+    return {
+      mes: mes.nombreMes,
+      real: numeroMes <= mesLimiteReal ? mes.real_acumulado : undefined, // Solo mostrar hasta el mes actual
+      ppto: mes.ppto_acumulado,
+      anioAnterior: mes.anio_ant_acumulado
+    };
+  });
   
   console.log('📈 Datos línea preparados:', datosLinea);
   console.log('💰 KPIs actuales:', datos?.kpis);
@@ -297,6 +303,18 @@ const DanosAcumulados = () => {
           <Typography variant="body2" color="text.secondary">
             Análisis de valores monetarios por año
           </Typography>
+          {datos?.estado_datos && (
+            <Box sx={{ mt: 1 }}>
+              <Chip 
+                label={datos.estado_datos.descripcion}
+                color="primary"
+                variant="outlined"
+                size="small"
+                icon={<Event />}
+              />
+            </Box>
+          )}
+
         </Box>
         
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -496,14 +514,48 @@ const DanosAcumulados = () => {
           <TabPanel value={currentTab} index={0}>
           <Card>
             <CardContent>
-              <Typography variant="h6" component="h2" gutterBottom>
-                Evolución Acumulada Mensual
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" component="h2">
+                  Evolución Acumulada Mensual
+                </Typography>
+                                 {datos?.ajuste_dinamico && (
+                   <Chip 
+                     label={`Real hasta ${getMonthName(datos.ajuste_dinamico.mes_limite_real)} | Presupuesto completo`}
+                     color="info"
+                     variant="outlined"
+                     size="small"
+                   />
+                 )}
+                            </Box>
+              
+              {datos?.estado_datos && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>📊 Lógica de Datos:</strong> 
+                    <br/>• <strong>Presupuesto:</strong> Fijo de $3M mensual hasta diciembre (total $36M)
+                    <br/>• <strong>Real:</strong> Se extiende hasta {datos.estado_datos.nombre_mes_actual} (mes actual del calendario)
+                    <br/>• <strong>Comportamiento:</strong> La línea roja se extiende hasta el mes actual, manteniendo el valor acumulado del mes anterior si no hay datos nuevos
+                    <br/>• <strong>Actualización automática:</strong> El 1 de cada mes la línea se extiende automáticamente
+                  </Typography>
+                </Alert>
+              )}
+              
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart data={datosLinea}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="mes" />
-                  <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                  <YAxis 
+                    tickFormatter={(value) => {
+                      if (value >= 1000000) {
+                        return `$${(value / 1000000).toFixed(0)}M`;
+                      } else if (value >= 1000) {
+                        return `$${(value / 1000).toFixed(0)}K`;
+                      } else {
+                        return `$${value}`;
+                      }
+                    }}
+                    width={80}
+                  />
                   <Tooltip 
                     formatter={(value) => [formatCurrency(value), '']}
                     labelFormatter={(label) => `Mes: ${label}`}
@@ -515,6 +567,7 @@ const DanosAcumulados = () => {
                     stroke={colors.real} 
                     strokeWidth={3}
                     name="Real Acumulado"
+                    dot={{ fill: colors.real, strokeWidth: 2, r: 4 }}
                   />
                   <Line 
                     type="monotone" 
@@ -522,6 +575,7 @@ const DanosAcumulados = () => {
                     stroke={colors.ppto} 
                     strokeWidth={3}
                     name="Presupuesto Acumulado"
+                    dot={{ fill: colors.ppto, strokeWidth: 2, r: 4 }}
                   />
                   <Line 
                     type="monotone" 
@@ -530,6 +584,7 @@ const DanosAcumulados = () => {
                     strokeWidth={2}
                     strokeDasharray="5 5"
                     name="Año Anterior"
+                    dot={{ fill: colors.anioAnterior, strokeWidth: 2, r: 3 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -547,7 +602,18 @@ const DanosAcumulados = () => {
                 <BarChart data={datosLinea}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="mes" />
-                  <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                  <YAxis 
+                    tickFormatter={(value) => {
+                      if (value >= 1000000) {
+                        return `$${(value / 1000000).toFixed(0)}M`;
+                      } else if (value >= 1000) {
+                        return `$${(value / 1000).toFixed(0)}K`;
+                      } else {
+                        return `$${value}`;
+                      }
+                    }}
+                    width={80}
+                  />
                   <Tooltip 
                     formatter={(value) => [formatCurrency(value), '']}
                     labelFormatter={(label) => `Mes: ${label}`}
@@ -660,16 +726,28 @@ const DanosAcumulados = () => {
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <CheckCircle className="h-4 w-4 text-green-500" />
-                        <Typography variant="body2">Datos cargados hasta: {datos?.datos_grafico?.filter(d => d.real_acumulado > 0).length || 0} meses</Typography>
+                        <Typography variant="body2">
+                          Datos reales hasta: {datos?.ajuste_dinamico ? getMonthName(datos.ajuste_dinamico.mes_limite_real) : 'N/A'}
+                        </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <CheckCircle className="h-4 w-4 text-green-500" />
-                        <Typography variant="body2">Vista acumulados: Activa</Typography>
+                        <Typography variant="body2">
+                          Ajuste dinámico: {datos?.ajuste_dinamico?.es_anio_actual ? 'Activo' : 'Completo'}
+                        </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <CheckCircle className="h-4 w-4 text-green-500" />
                         <Typography variant="body2">Cálculos automáticos: Funcionando</Typography>
                       </Box>
+                      {datos?.ajuste_dinamico && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Event className="h-4 w-4 text-blue-500" />
+                          <Typography variant="body2" color="text.secondary">
+                            {datos.ajuste_dinamico.descripcion}
+                          </Typography>
+                        </Box>
+                      )}
                     </Box>
                   </Box>
                 </CardContent>
@@ -731,14 +809,34 @@ const DanosAcumulados = () => {
                          <Typography variant="body2" fontWeight="medium">
                            {mes.nombreMes}
                          </Typography>
-                         {mes.valor_real > 0 && (
-                           <Chip 
-                             label="Datos Cargados" 
-                             size="small" 
-                             color="success" 
-                             variant="outlined"
-                           />
-                         )}
+                                                   {datos?.ajuste_dinamico && (
+                            <>
+                              {mes.mes <= datos.ajuste_dinamico.mes_limite_real && mes.real_acumulado > 0 && (
+                                <Chip 
+                                  label="Real Cargado" 
+                                  size="small" 
+                                  color="success" 
+                                  variant="outlined"
+                                />
+                              )}
+                              {mes.mes > datos.ajuste_dinamico.mes_limite_real && datos.ajuste_dinamico.es_anio_actual && (
+                                <Chip 
+                                  label="Real Pendiente" 
+                                  size="small" 
+                                  color="warning" 
+                                  variant="outlined"
+                                />
+                              )}
+                              {mes.ppto_acumulado > 0 && (
+                                <Chip 
+                                  label="Presupuesto Asignado" 
+                                  size="small" 
+                                  color="info" 
+                                  variant="outlined"
+                                />
+                              )}
+                            </>
+                          )}
                        </Box>
                      </TableCell>
                      <TableCell align="right">
@@ -747,7 +845,7 @@ const DanosAcumulados = () => {
                          color="error.main"
                          fontWeight="medium"
                        >
-                         {formatCurrency(mes.real_acumulado - (datosGrafico[index - 1]?.real_acumulado || 0))}
+                         {mes.valor_real_formateado}
                        </Typography>
                      </TableCell>
                      <TableCell align="right">
@@ -756,7 +854,7 @@ const DanosAcumulados = () => {
                          color="info.main"
                          fontWeight="medium"
                        >
-                         {formatCurrency(mes.ppto_acumulado - (datosGrafico[index - 1]?.ppto_acumulado || 0))}
+                         {mes.valor_ppto_formateado}
                        </Typography>
                      </TableCell>
                      <TableCell align="right">

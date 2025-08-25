@@ -7,7 +7,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Card, CardContent, Box, Typography, Chip, IconButton, Tooltip as MuiTooltip } from '@mui/material';
-import { Info, Visibility, LocalGasStation } from '@mui/icons-material';
+import { Visibility } from '@mui/icons-material';
 import SectorDetailsModal from './SectorDetailsModal';
 
 ChartJS.register(ArcElement, Tooltip, Legend);

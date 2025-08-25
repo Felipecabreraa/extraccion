@@ -10,7 +10,6 @@ import {
   LocalGasStation as GasIcon,
   Speed as SpeedIcon,
   TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
   Refresh as RefreshIcon,
   Assessment as AssessmentIcon,
   Engineering as EngineeringIcon,
@@ -23,11 +22,10 @@ import {
   Route as RouteIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
-  Info as InfoIcon,
   CalendarMonth as CalendarMonthIcon
 } from '@mui/icons-material';
 import axios from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+// import { useAuth } from '../context/AuthContext'; // Comentado para evitar warnings
 import BarChartKPI from '../components/BarChartKPI';
 import DonutChartKPI from '../components/DonutChartKPI';
 import KPIVisual from '../components/KPIVisual';

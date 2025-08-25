@@ -1,394 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Box, Typography, Grid, Card, CardContent, Paper, Chip,
-  CircularProgress, Alert, IconButton, Tooltip,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Skeleton, Tabs, Tab, Button, MenuItem, Select, FormControl, InputLabel,
-  Dialog, DialogTitle, DialogContent, DialogActions, Container, Fade
+  Box, Typography, Grid, Card, CardContent, Paper,
+  Alert, IconButton, Tooltip, Skeleton, Container, Button,
+  FormControl, InputLabel, Select, MenuItem, Fade, Tabs, Tab,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import {
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
   Refresh as RefreshIcon,
   Assessment as AssessmentIcon,
-  Timeline as TimelineIcon,
-  LocationOn as LocationIcon,
   Build as BuildIcon,
   CalendarToday as CalendarIcon,
-  ShowChart as ShowChartIcon,
   Analytics as AnalyticsIcon,
   Psychology as PsychologyIcon,
-  Notifications as NotificationsIcon
+  Notifications as NotificationsIcon,
+  LocationOn as LocationIcon,
+  Timeline as TimelineIcon
 } from '@mui/icons-material';
 import axios from '../api/axios';
-import { useAuth } from '../context/AuthContext';
 import BarChartKPI from '../components/BarChartKPI';
 import KPIVisual from '../components/KPIVisual';
-import StackedBarChartKPI from '../components/StackedBarChartKPI';
 import DonutChartKPI from '../components/DonutChartKPI';
+import GraficosPorZona from '../components/GraficosPorZona';
+import AlertasInteligentes from '../components/AlertasInteligentes';
 import RadarChartKPI from '../components/RadarChartKPI';
 import HeatmapGridKPI from '../components/HeatmapGridKPI';
-import AlertasInteligentes from '../components/AlertasInteligentes';
-import AnalisisPredictivo from '../components/AnalisisPredictivo';
-import GraficosPorZona from '../components/GraficosPorZona';
 import { transformDanoStats } from '../utils/dataTransformers';
 
-// Componente para gráfico de barras mejorado
-const SimpleBarChart = ({ data, title, height = 400 }) => {
-  if (!data || data.length === 0) {
-    return (
-      <Card sx={{ 
-        borderRadius: 3, 
-        boxShadow: 3,
-        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
-      }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#1e293b' }}>
-            {title}
-          </Typography>
-          <Box height={height} display="flex" alignItems="center" justifyContent="center">
-            <Typography color="textSecondary">No hay datos disponibles</Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Ordenar datos por valor descendente
-  const sortedData = [...data].sort((a, b) => {
-    const valueA = a.cantidad || a.total || 0;
-    const valueB = b.cantidad || b.total || 0;
-    return valueB - valueA;
-  });
-
-  const maxValue = Math.max(...sortedData.map(item => item.cantidad || item.total || 0));
-
-  // Paleta de colores para las barras
-  const colors = [
-    '#3B82F6', // Azul
-    '#F59E0B', // Naranja
-    '#10B981', // Verde
-    '#EC4899', // Rosa
-    '#8B5CF6', // Púrpura
-    '#EF4444', // Rojo
-    '#6B7280', // Gris
-    '#FCD34D', // Amarillo
-    '#8BC34A', // Verde claro
-    '#F44336'  // Rojo
-  ];
-
-  return (
-    <Card sx={{ 
-      borderRadius: 3, 
-      boxShadow: 6,
-      background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-      border: '1px solid rgba(0,0,0,0.1)'
-    }}>
-      <CardContent sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom sx={{ 
-          fontWeight: 600, 
-          color: '#1e293b',
-          mb: 3,
-          textAlign: 'center'
-        }}>
-          {title}
-        </Typography>
-        
-        <Box sx={{ 
-          height: height - 100, 
-          display: 'flex', 
-          alignItems: 'end', 
-          gap: 2,
-          px: 2,
-          position: 'relative'
-        }}>
-          {/* Líneas de fondo para mejor visualización */}
-          <Box sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            pointerEvents: 'none',
-            opacity: 0.1
-          }}>
-            {[0, 25, 50, 75, 100].map((line, index) => (
-              <Box key={index} sx={{
-                height: '1px',
-                bgcolor: '#64748b',
-                width: '100%'
-              }} />
-            ))}
-          </Box>
-
-          {sortedData.map((item, index) => {
-            const value = item.cantidad || item.total || 0;
-            const percentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
-            const label = item.mes || item.zona || item.periodo || item.tipo || 'N/A';
-            const color = colors[index % colors.length];
-            
-            return (
-              <Box 
-                key={index} 
-                sx={{ 
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  position: 'relative'
-                }}
-              >
-                {/* Barra principal */}
-                <Box
-                  sx={{
-                    width: '80%',
-                    height: `${Math.max(10, percentage)}%`,
-                    minHeight: '20px',
-                    background: `linear-gradient(180deg, ${color} 0%, ${color}dd 100%)`,
-                    borderRadius: '8px 8px 0 0',
-                    mb: 2,
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    position: 'relative',
-                    '&:hover': {
-                      transform: 'scaleY(1.05)',
-                      boxShadow: '0 8px 15px rgba(0,0,0,0.2)',
-                      '& .bar-tooltip': {
-                        opacity: 1,
-                        transform: 'translateY(-10px)'
-                      }
-                    }
-                  }}
-                >
-                  {/* Tooltip en hover */}
-                  <Box className="bar-tooltip" sx={{
-                    position: 'absolute',
-                    top: '-40px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    bgcolor: 'rgba(0,0,0,0.8)',
-                    color: 'white',
-                    px: 2,
-                    py: 1,
-                    borderRadius: 2,
-                    fontSize: '0.75rem',
-                    fontWeight: 'bold',
-                    opacity: 0,
-                    transition: 'all 0.3s ease',
-                    whiteSpace: 'nowrap',
-                    zIndex: 10
-                  }}>
-                    {value} daños
-                  </Box>
-                </Box>
-
-                {/* Etiqueta del sector */}
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    fontWeight: 600,
-                    color: '#475569',
-                    textAlign: 'center',
-                    fontSize: '0.7rem',
-                    lineHeight: 1.2,
-                    maxWidth: '100%',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {label}
-                </Typography>
-
-                {/* Valor numérico */}
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    fontWeight: 'bold',
-                    color: color,
-                    mt: 0.5,
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  {value}
-                </Typography>
-              </Box>
-            );
-          })}
-        </Box>
-
-        {/* Leyenda de colores */}
-        <Box sx={{ 
-          mt: 3, 
-          display: 'flex', 
-          justifyContent: 'center',
-          flexWrap: 'wrap',
-          gap: 2
-        }}>
-          <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 600 }}>
-            Intensidad de daños:
-          </Typography>
-          {sortedData.slice(0, 5).map((item, index) => {
-            const value = item.cantidad || item.total || 0;
-            const color = colors[index % colors.length];
-            const label = item.mes || item.zona || item.periodo || item.tipo || 'N/A';
-            
-            return (
-              <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box sx={{
-                  width: 12,
-                  height: 12,
-                  bgcolor: color,
-                  borderRadius: 1
-                }} />
-                <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
-                  {label} ({value})
-                </Typography>
-              </Box>
-            );
-          })}
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
-
-// Componente para tabla de datos mejorada
-const DataTable = ({ data, title, columns }) => {
-  if (!data || data.length === 0) {
-    return (
-      <Card sx={{ 
-        borderRadius: 3, 
-        boxShadow: 3,
-        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
-      }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#1e293b' }}>
-            {title}
-          </Typography>
-          <Typography color="textSecondary">No hay datos disponibles</Typography>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Ordenar datos por el primer campo numérico
-  const sortedData = [...data].sort((a, b) => {
-    const valueA = parseInt(a[columns[1]?.field]) || 0;
-    const valueB = parseInt(b[columns[1]?.field]) || 0;
-    return valueB - valueA;
-  });
-
-  return (
-    <Card sx={{ 
-      borderRadius: 3, 
-      boxShadow: 6,
-      background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-      border: '1px solid rgba(0,0,0,0.1)'
-    }}>
-      <CardContent sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom sx={{ 
-          fontWeight: 600, 
-          color: '#1e293b',
-          mb: 3,
-          textAlign: 'center'
-        }}>
-          {title}
-        </Typography>
-        
-        <TableContainer sx={{ 
-          borderRadius: 2,
-          border: '1px solid rgba(0,0,0,0.1)',
-          overflow: 'hidden'
-        }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ 
-                bgcolor: 'rgba(59, 130, 246, 0.1)',
-                '& th': { 
-                  fontWeight: 'bold',
-                  color: '#1e293b',
-                  borderBottom: '2px solid #3b82f6'
-                }
-              }}>
-                {columns.map((col, index) => (
-                  <TableCell key={index} sx={{ 
-                    fontWeight: 'bold',
-                    fontSize: '0.85rem',
-                    textAlign: index === 0 ? 'left' : 'center'
-                  }}>
-                    {col.label}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sortedData.map((row, index) => {
-                const isEven = index % 2 === 0;
-                return (
-                  <TableRow 
-                    key={index}
-                    sx={{ 
-                      bgcolor: isEven ? 'rgba(255,255,255,0.5)' : 'rgba(248,250,252,0.8)',
-                      '&:hover': {
-                        bgcolor: 'rgba(59, 130, 246, 0.1)',
-                        transform: 'scale(1.01)',
-                        transition: 'all 0.2s ease'
-                      },
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    {columns.map((col, colIndex) => {
-                      const value = row[col.field];
-                      const isNumeric = typeof value === 'number' || !isNaN(parseInt(value));
-                      
-                      return (
-                        <TableCell 
-                          key={colIndex} 
-                          sx={{ 
-                            fontSize: '0.8rem',
-                            textAlign: colIndex === 0 ? 'left' : 'center',
-                            fontWeight: isNumeric ? 'bold' : 'normal',
-                            color: isNumeric ? '#3b82f6' : '#475569'
-                          }}
-                        >
-                          {isNumeric ? parseInt(value).toLocaleString() : value}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        {/* Resumen de datos */}
-        <Box sx={{ 
-          mt: 2, 
-          p: 2, 
-          bgcolor: 'rgba(59, 130, 246, 0.05)', 
-          borderRadius: 2,
-          border: '1px solid rgba(59, 130, 246, 0.1)'
-        }}>
-          <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 600 }}>
-            Resumen: {sortedData.length} sectores con daños registrados
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
-
 export default function Danos() {
-  const { usuario } = useAuth();
   const [danoStats, setDanoStats] = useState(null);
-  const [predictiveData, setPredictiveData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [predictiveLoading, setPredictiveLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -434,7 +75,6 @@ export default function Danos() {
       
       console.log('🔍 Fetching daño stats with params:', params);
       
-      // TEMPORAL: Usar endpoint de prueba sin autenticación
       const response = await axios.get(`/danos/stats/test${params}`);
       
       // Transformar datos del backend al formato del frontend
@@ -453,25 +93,9 @@ export default function Danos() {
     }
   }, [selectedYear, selectedMonth, selectedOrigen]);
 
-  const fetchPredictiveData = useCallback(async () => {
-    try {
-      setPredictiveLoading(true);
-      // TEMPORAL: Comentar datos predictivos hasta que esté implementado
-      // const response = await axios.get(`/danos/predictive?year=${selectedYear}`);
-      // setPredictiveData(response.data);
-      setPredictiveData(null); // Por ahora no hay datos predictivos
-    } catch (err) {
-      console.error('Error fetching predictive data:', err);
-      // No mostrar error para datos predictivos, son opcionales
-    } finally {
-      setPredictiveLoading(false);
-    }
-  }, [selectedYear]);
-
   useEffect(() => {
     fetchDanoStats();
-    fetchPredictiveData();
-  }, [fetchDanoStats, fetchPredictiveData]);
+  }, [fetchDanoStats]);
 
   // Auto-refresh cada 30 segundos si está activado
   useEffect(() => {
@@ -506,7 +130,6 @@ export default function Danos() {
 
   const handleRefresh = () => {
     fetchDanoStats(false);
-    fetchPredictiveData();
   };
 
   const toggleAutoRefresh = () => {
@@ -545,13 +168,19 @@ export default function Danos() {
     return (
       <Container maxWidth="xl">
         <Box sx={{ py: 4 }}>
-          <Skeleton variant="rectangular" height={60} sx={{ mb: 3 }} />
           <Grid container spacing={3}>
-            {[1, 2, 3, 4].map((item) => (
-              <Grid item xs={12} sm={6} md={3} key={item}>
-                <Skeleton variant="rectangular" height={120} />
-              </Grid>
-            ))}
+            <Grid item xs={12} sm={6} md={3}>
+              <Skeleton variant="rectangular" height={120} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Skeleton variant="rectangular" height={120} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Skeleton variant="rectangular" height={120} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Skeleton variant="rectangular" height={120} />
+            </Grid>
           </Grid>
         </Box>
       </Container>
@@ -574,7 +203,6 @@ export default function Danos() {
   }
 
   // Preparar datos para gráficos
-  const stackedBarData = danoStats?.stackedBarData || [];
   const heatmapData = danoStats?.heatmapData || [];
 
   return (
@@ -757,14 +385,6 @@ export default function Danos() {
           </Grid>
         </Fade>
 
-        {/* Análisis Predictivo */}
-        {/* TEMPORAL: Comentar hasta que esté implementado
-        <AnalisisPredictivo 
-          datos={predictiveData} 
-          loading={predictiveLoading}
-        />
-        */}
-
         {/* Gráficos Principales */}
         <Grid container spacing={4} mb={4}>
           {/* Gráfico de daños por tipo */}
@@ -895,15 +515,33 @@ export default function Danos() {
                   />
                 </Grid>
                 <Grid item xs={12} lg={4}>
-                  <DataTable
-                    data={danoStats?.porMes || []}
-                    title="Detalle Mensual"
-                    columns={[
-                      { field: 'nombreMes', label: 'Mes' },
-                      { field: 'cantidad', label: 'Órdenes' },
-                      { field: 'total', label: 'Daños' }
-                    ]}
-                  />
+                  <Card sx={{ height: 400, overflow: 'auto' }}>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Detalle Mensual
+                      </Typography>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Mes</TableCell>
+                              <TableCell align="right">Órdenes</TableCell>
+                              <TableCell align="right">Daños</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {danoStats?.porMes?.map((item, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{item.nombreMes}</TableCell>
+                                <TableCell align="right">{item.cantidad}</TableCell>
+                                <TableCell align="right">{item.total}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </CardContent>
+                  </Card>
                 </Grid>
               </Grid>
             )}
@@ -911,22 +549,41 @@ export default function Danos() {
             {activeTab === 1 && (
               <Grid container spacing={3}>
                 <Grid item xs={12} lg={8}>
-                  <SimpleBarChart
+                  <BarChartKPI
                     data={danoStats?.porZona || []}
                     title="Daños por Sector"
                     height={400}
+                    onBarClick={handleBarClick}
                   />
                 </Grid>
                 <Grid item xs={12} lg={4}>
-                  <DataTable
-                    data={danoStats?.porZona || []}
-                    title="Detalle por Sector"
-                    columns={[
-                      { field: 'zona', label: 'Sector' },
-                      { field: 'cantidad', label: 'Órdenes' },
-                      { field: 'total', label: 'Daños' }
-                    ]}
-                  />
+                  <Card sx={{ height: 400, overflow: 'auto' }}>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Detalle por Sector
+                      </Typography>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Sector</TableCell>
+                              <TableCell align="right">Órdenes</TableCell>
+                              <TableCell align="right">Daños</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {danoStats?.porZona?.map((item, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{item.zona}</TableCell>
+                                <TableCell align="right">{item.cantidad}</TableCell>
+                                <TableCell align="right">{item.total}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </CardContent>
+                  </Card>
                 </Grid>
               </Grid>
             )}
@@ -934,22 +591,41 @@ export default function Danos() {
             {activeTab === 2 && (
               <Grid container spacing={3}>
                 <Grid item xs={12} lg={8}>
-                  <SimpleBarChart
+                  <BarChartKPI
                     data={danoStats?.porTipo || []}
                     title="Daños por Tipo"
                     height={400}
+                    onBarClick={handleBarClick}
                   />
                 </Grid>
                 <Grid item xs={12} lg={4}>
-                  <DataTable
-                    data={danoStats?.porTipo || []}
-                    title="Detalle por Tipo"
-                    columns={[
-                      { field: 'tipo', label: 'Tipo' },
-                      { field: 'cantidad', label: 'Órdenes' },
-                      { field: 'total', label: 'Daños' }
-                    ]}
-                  />
+                  <Card sx={{ height: 400, overflow: 'auto' }}>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Detalle por Tipo
+                      </Typography>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Tipo</TableCell>
+                              <TableCell align="right">Órdenes</TableCell>
+                              <TableCell align="right">Daños</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {danoStats?.porTipo?.map((item, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{item.tipo}</TableCell>
+                                <TableCell align="right">{item.cantidad}</TableCell>
+                                <TableCell align="right">{item.total}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </CardContent>
+                  </Card>
                 </Grid>
               </Grid>
             )}
@@ -957,22 +633,41 @@ export default function Danos() {
             {activeTab === 3 && (
               <Grid container spacing={3}>
                 <Grid item xs={12} lg={8}>
-                  <SimpleBarChart
+                  <BarChartKPI
                     data={danoStats?.porSupervisor || []}
                     title="Daños por Supervisor"
                     height={400}
+                    onBarClick={handleBarClick}
                   />
                 </Grid>
                 <Grid item xs={12} lg={4}>
-                  <DataTable
-                    data={danoStats?.porSupervisor || []}
-                    title="Detalle por Supervisor"
-                    columns={[
-                      { field: 'supervisor', label: 'Supervisor' },
-                      { field: 'cantidad', label: 'Órdenes' },
-                      { field: 'total', label: 'Daños' }
-                    ]}
-                  />
+                  <Card sx={{ height: 400, overflow: 'auto' }}>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Detalle por Supervisor
+                      </Typography>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Supervisor</TableCell>
+                              <TableCell align="right">Órdenes</TableCell>
+                              <TableCell align="right">Daños</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {danoStats?.porSupervisor?.map((item, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{item.supervisor}</TableCell>
+                                <TableCell align="right">{item.cantidad}</TableCell>
+                                <TableCell align="right">{item.total}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </CardContent>
+                  </Card>
                 </Grid>
               </Grid>
             )}

@@ -326,6 +326,28 @@ exports.getDashboardMetrics = async (req, res) => {
       Pabellon.count({ timeout: queryTimeout })
     ]);
 
+    // 7. Calcular daños registrados del año seleccionado
+    let danosMes = 0;
+    const actualYear = new Date().getFullYear();
+    
+    // Si el año seleccionado es posterior al actual, los daños deben ser 0
+    if (currentYear <= actualYear) {
+      // Calcular daños reales del año seleccionado
+      const danosResult = await Dano.count({
+        where: {
+          planilla_id: {
+            [Op.in]: sequelize.literal(`(
+              SELECT id FROM planilla 
+              WHERE YEAR(fecha_inicio) = ${currentYear}
+            )`)
+          }
+        },
+        timeout: queryTimeout
+      });
+      danosMes = danosResult || 0;
+    }
+    // Si el año seleccionado es posterior al actual, danosMes ya está en 0
+
     console.log('Métricas obtenidas desde vista unificada vw_ordenes_2025_actual');
 
     // Cálculo de eficiencia real
@@ -425,8 +447,8 @@ exports.getDashboardMetrics = async (req, res) => {
       // Eficiencia
       eficienciaGlobal: eficienciaActual,
       
-      // Daños (mantener por ahora)
-      danosMes: 3,
+      // Daños calculados dinámicamente
+      danosMes: danosMes,
       danosPorTipo: [],
       
       // Alertas
@@ -2228,8 +2250,31 @@ exports.getDanosAcumulados = async (req, res) => {
       }
     }
     
-    // Preparar datos para gráficos
+    // 🔄 LÓGICA CORREGIDA: Presupuesto fijo, Real dinámico hasta mes actual
     const datosGrafico = [];
+    
+    // Obtener mes actual del calendario
+    const fechaActual = new Date();
+    const mesActual = fechaActual.getMonth() + 1; // getMonth() devuelve 0-11
+    const anioActual = fechaActual.getFullYear();
+    
+    // Determinar hasta qué mes mostrar datos reales
+    let mesLimiteReal = 12;
+    if (currentYear === anioActual) {
+      // Si es el año actual, mostrar hasta el mes actual del calendario
+      mesLimiteReal = mesActual;
+    } else if (currentYear < anioActual) {
+      // Si es un año anterior, mostrar todos los meses
+      mesLimiteReal = 12;
+    } else {
+      // Si es un año futuro, no mostrar datos reales
+      mesLimiteReal = 0;
+    }
+    
+    console.log(`📅 Fecha actual: ${fechaActual.toLocaleDateString('es-CL')}`);
+    console.log(`📊 Año consulta: ${currentYear}, Año actual: ${anioActual}, Mes actual: ${mesActual}`);
+    console.log(`📈 Mes límite para datos reales: ${mesLimiteReal} (${getMonthName(mesLimiteReal)})`);
+    
     for (let mes = 1; mes <= 12; mes++) {
       const datosMes = {
         mes: mes,
@@ -2237,17 +2282,50 @@ exports.getDanosAcumulados = async (req, res) => {
         abreviacion: getMonthName(mes).substring(0, 3)
       };
       
-      // Datos del año actual
-      if (datosPorAnio[currentYear] && datosPorAnio[currentYear].meses[mes]) {
-        datosMes.real_acumulado = datosPorAnio[currentYear].meses[mes].real_acumulado;
-        datosMes.ppto_acumulado = datosPorAnio[currentYear].meses[mes].ppto_acumulado;
-        datosMes.real_acumulado_formateado = datosPorAnio[currentYear].meses[mes].real_acumulado_formateado;
-        datosMes.ppto_acumulado_formateado = datosPorAnio[currentYear].meses[mes].ppto_acumulado_formateado;
+      // Obtener datos del mes desde la vista
+      const datosMesVista = datosPorAnio[currentYear]?.meses[mes];
+      
+      // VALOR REAL Y PRESUPUESTO: Datos individuales del mes
+      datosMes.valor_real = datosMesVista ? datosMesVista.valor_real : 0;
+      datosMes.valor_ppto = datosMesVista ? datosMesVista.valor_ppto : 3000000; // Presupuesto fijo
+      datosMes.valor_real_formateado = formatCurrency(datosMes.valor_real);
+      datosMes.valor_ppto_formateado = formatCurrency(datosMes.valor_ppto);
+      
+      // PRESUPUESTO: Siempre fijo de $3M mensual hasta diciembre
+      const presupuestoMensual = 3000000; // $3M
+      datosMes.ppto_acumulado = presupuestoMensual * mes;
+      datosMes.ppto_acumulado_formateado = formatCurrency(datosMes.ppto_acumulado);
+      
+      // REAL ACUMULADO: Se extiende hasta el mes actual del calendario
+      if (mes <= mesLimiteReal) {
+        // Meses hasta el mes actual: mostrar datos reales acumulados
+        if (datosPorAnio[currentYear] && datosPorAnio[currentYear].meses[mes]) {
+          // Usar el real acumulado calculado (mantiene valor anterior si no hay datos nuevos)
+          datosMes.real_acumulado = datosPorAnio[currentYear].meses[mes].real_acumulado;
+          datosMes.real_acumulado_formateado = datosPorAnio[currentYear].meses[mes].real_acumulado_formateado;
+        } else {
+          // No hay datos para este mes - buscar el último valor acumulado conocido
+          let ultimoValorConocido = 0;
+          for (let mesAnterior = mes - 1; mesAnterior >= 1; mesAnterior--) {
+            if (datosPorAnio[currentYear] && datosPorAnio[currentYear].meses[mesAnterior]) {
+              ultimoValorConocido = datosPorAnio[currentYear].meses[mesAnterior].real_acumulado;
+              break;
+            }
+          }
+          datosMes.real_acumulado = ultimoValorConocido;
+          datosMes.real_acumulado_formateado = formatCurrency(ultimoValorConocido);
+        }
       } else {
-        datosMes.real_acumulado = 0;
-        datosMes.ppto_acumulado = 0;
-        datosMes.real_acumulado_formateado = formatCurrency(0);
-        datosMes.ppto_acumulado_formateado = formatCurrency(0);
+        // Meses futuros: mantener el valor del último mes con datos (línea plana)
+        let ultimoValorConocido = 0;
+        for (let mesAnterior = mesLimiteReal; mesAnterior >= 1; mesAnterior--) {
+          if (datosPorAnio[currentYear] && datosPorAnio[currentYear].meses[mesAnterior]) {
+            ultimoValorConocido = datosPorAnio[currentYear].meses[mesAnterior].real_acumulado;
+            break;
+          }
+        }
+        datosMes.real_acumulado = ultimoValorConocido;
+        datosMes.real_acumulado_formateado = formatCurrency(ultimoValorConocido);
       }
       
       // Datos del año anterior
@@ -2262,6 +2340,22 @@ exports.getDanosAcumulados = async (req, res) => {
       datosGrafico.push(datosMes);
     }
     
+    // Información del estado de datos para el frontend
+    const estadoDatos = {
+      mes_actual_calendario: mesActual,
+      nombre_mes_actual: getMonthName(mesActual),
+      mes_limite_real: mesLimiteReal,
+      nombre_mes_limite: getMonthName(mesLimiteReal),
+      presupuesto_mensual: 3000000,
+      presupuesto_anual: 36000000,
+      es_anio_actual: currentYear === anioActual,
+      descripcion: currentYear === anioActual 
+        ? `Datos reales hasta ${getMonthName(mesActual)} (mes actual) - Presupuesto fijo $3M/mes`
+        : currentYear < anioActual 
+          ? `Año histórico - Datos completos - Presupuesto fijo $3M/mes`
+          : 'Año futuro - Sin datos reales - Presupuesto fijo $3M/mes'
+    };
+    
     const response = {
       anio_actual: currentYear,
       anio_anterior: previousYear,
@@ -2269,6 +2363,7 @@ exports.getDanosAcumulados = async (req, res) => {
       datos_grafico: datosGrafico,
       meses: meses,
       variacion_anual: variacionAnual,
+      estado_datos: estadoDatos,
       kpis: {
         total_real_actual: datosPorAnio[currentYear]?.totales.real || 0,
         total_ppto_actual: datosPorAnio[currentYear]?.totales.ppto || 0,
@@ -2281,7 +2376,7 @@ exports.getDanosAcumulados = async (req, res) => {
         timestamp: new Date().toISOString(),
         fuente: 'vista_danos_acumulados',
         anio_consulta: currentYear
-      }
+
     };
     
     console.log('✅ Datos de daños acumulados obtenidos exitosamente');
@@ -2296,6 +2391,79 @@ exports.getDanosAcumulados = async (req, res) => {
       error: 'Error al obtener datos de daños acumulados',
       message: error.message,
       timestamp: new Date().toISOString()
+    });
+  }
+};
+
+// Endpoint temporal para verificar datos de la vista
+exports.getVistaRaw = async (req, res) => {
+  try {
+    const { anio } = req.query;
+    const currentYear = anio ? parseInt(anio) : new Date().getFullYear();
+    
+    const [datos] = await sequelize.query(`
+      SELECT 
+        anio,
+        mes,
+        valor_real,
+        valor_ppto,
+        valor_anio_ant,
+        real_acumulado,
+        ppto_acumulado,
+        anio_ant_acumulado
+      FROM vista_danos_acumulados
+      WHERE anio = ?
+      ORDER BY mes
+    `, {
+      replacements: [currentYear]
+    });
+    
+    res.json({
+      anio: currentYear,
+      datos: datos
+    });
+    
+  } catch (error) {
+    console.error('❌ Error obteniendo datos de la vista:', error);
+    res.status(500).json({
+      error: 'Error al obtener datos de la vista',
+      message: error.message
+    });
+  }
+};
+
+// Endpoint temporal para verificar datos de la tabla
+exports.getTablaRaw = async (req, res) => {
+  try {
+    const { anio } = req.query;
+    const currentYear = anio ? parseInt(anio) : new Date().getFullYear();
+    
+    const [datos] = await sequelize.query(`
+      SELECT 
+        anio,
+        mes,
+        valor_real,
+        valor_ppto,
+        valor_anio_ant,
+        fecha_creacion,
+        fecha_actualizacion
+      FROM reporte_danos_mensuales
+      WHERE anio = ?
+      ORDER BY mes
+    `, {
+      replacements: [currentYear]
+    });
+    
+    res.json({
+      anio: currentYear,
+      datos: datos
+    });
+    
+  } catch (error) {
+    console.error('❌ Error obteniendo datos de la tabla:', error);
+    res.status(500).json({
+      error: 'Error al obtener datos de la tabla',
+      message: error.message
     });
   }
 };

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INFORME DE DAÑOS AÑO {{year}}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            font-size: 10px;
+            line-height: 1.2;
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+            color: #1976d2;
+        }
+        
+        .header h2 {
+            font-size: 14px;
+            margin: 5px 0 0 0;
+            color: #666;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #1976d2;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .metros-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 8px;
+        }
+        
+        .metros-table th,
+        .metros-table td {
+            border: 1px solid #ddd;
+            padding: 3px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .metros-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            font-size: 7px;
+        }
+        
+        .metros-table .header-row {
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+        
+        .metros-table .total-row {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        
+        .quincena-section {
+            margin-bottom: 15px;
+        }
+        
+        .quincena-title {
+            font-size: 9px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .mes-anterior {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+            background-color: #f9f9f9;
+            margin-left: 10px;
+            display: inline-block;
+            vertical-align: top;
+        }
+        
+        .mes-anterior h4 {
+            margin: 0 0 5px 0;
+            font-size: 8px;
+            color: #666;
+        }
+        
+        .mes-anterior .value {
+            font-size: 12px;
+            font-weight: bold;
+            color: #1976d2;
+        }
+        
+        .charts-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .chart {
+            width: 48%;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #fafafa;
+        }
+        
+        .chart-title {
+            font-size: 9px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .chart-data {
+            font-size: 7px;
+            line-height: 1.1;
+        }
+        
+        .chart-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        
+        .chart-label {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .chart-value {
+            color: #333;
+        }
+        
+        .legend {
+            margin-top: 10px;
+            font-size: 7px;
+        }
+        
+        .legend-item {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        
+        .legend-color {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 3px;
+            border-radius: 50%;
+        }
+        
+        .color-blue { background-color: #1976d2; }
+        .color-red { background-color: #f44336; }
+        .color-yellow { background-color: #ff9800; }
+        
+        .indicators {
+            margin-top: 5px;
+            text-align: center;
+        }
+        
+        .indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin: 0 2px;
+        }
+        
+        .indicator-red { background-color: #f44336; }
+        .indicator-orange { background-color: #ff9800; }
+        .indicator-green { background-color: #4caf50; }
+        
+        .danos-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 8px;
+        }
+        
+        .danos-table th,
+        .danos-table td {
+            border: 1px solid #ddd;
+            padding: 3px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .danos-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            font-size: 7px;
+        }
+        
+        .danos-table .total-row {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-left: 2px;
+        }
+        
+        .status-green { background-color: #4caf50; }
+        .status-yellow { background-color: #ff9800; }
+        .status-red { background-color: #f44336; }
+        .status-orange { background-color: #ff5722; }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 8px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>INFORME DE DAÑOS AÑO {{year}}</h1>
+        <h2>{{fechaFormateada}}</h2>
+    </div>
+
+    <!-- Sección 1: METROS SUPERFICIE -->
+    <div class="section">
+        <div class="section-title">METROS SUPERFICIE</div>
+        
+        <div style="display: flex; align-items: flex-start;">
+            <!-- Primera Quincena -->
+            <div style="flex: 1;">
+                <div class="quincena-title">1ERA QUINCENA</div>
+                <table class="metros-table">
+                    <thead>
+                        <tr class="header-row">
+                            <th>Zonas</th>
+                            {{#each (range 1 15)}}
+                                <th>{{padStart this 2}}-08-{{../year}}</th>
+                            {{/each}}
+                            <th>TOTAL 1 QUINCENA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Hembra</td>
+                            {{#each (range 1 15)}}
+                                <td>{{getMetrosSuperficie ../metrosSuperficie.registros this 'Hembra'}}</td>
+                            {{/each}}
+                            <td class="total-row">{{formatNumber metrosSuperficie.hembra}}</td>
+                        </tr>
+                        <tr>
+                            <td>Macho</td>
+                            {{#each (range 1 15)}}
+                                <td>{{getMetrosSuperficie ../metrosSuperficie.registros this 'Macho'}}</td>
+                            {{/each}}
+                            <td class="total-row">{{formatNumber metrosSuperficie.macho}}</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td>Totales</td>
+                            {{#each (range 1 15)}}
+                                <td>{{add (getMetrosSuperficie ../metrosSuperficie.registros this 'Hembra') (getMetrosSuperficie ../metrosSuperficie.registros this 'Macho')}}</td>
+                            {{/each}}
+                            <td>{{formatNumber metrosSuperficie.total}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Mes Anterior -->
+            <div class="mes-anterior">
+                <h4>MES ANTERIOR</h4>
+                <div class="value">{{formatNumber (getMesAnterior metrosSuperficie)}}</div>
+            </div>
+        </div>
+        
+        <!-- Segunda Quincena -->
+        <div style="margin-top: 15px;">
+            <div class="quincena-title">2DA QUINCENA</div>
+            <table class="metros-table">
+                <thead>
+                    <tr class="header-row">
+                        <th>Zonas</th>
+                        {{#each (range 16 31)}}
+                            <th>{{padStart this 2}}-08-{{../year}}</th>
+                        {{/each}}
+                        <th>TOTAL 2 QUINCENA</th>
+                        <th>TOTAL MENSUAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Hembra</td>
+                        {{#each (range 16 31)}}
+                            <td>{{getMetrosSuperficie ../metrosSuperficie.registros this 'Hembra'}}</td>
+                        {{/each}}
+                        <td class="total-row">{{formatNumber (divide metrosSuperficie.hembra 2)}}</td>
+                        <td class="total-row">{{formatNumber metrosSuperficie.hembra}}</td>
+                    </tr>
+                    <tr>
+                        <td>Macho</td>
+                        {{#each (range 16 31)}}
+                            <td>{{getMetrosSuperficie ../metrosSuperficie.registros this 'Macho'}}</td>
+                        {{/each}}
+                        <td class="total-row">{{formatNumber (divide metrosSuperficie.macho 2)}}</td>
+                        <td class="total-row">{{formatNumber metrosSuperficie.macho}}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Totales</td>
+                        {{#each (range 16 31)}}
+                            <td>{{add (getMetrosSuperficie ../metrosSuperficie.registros this 'Hembra') (getMetrosSuperficie ../metrosSuperficie.registros this 'Macho')}}</td>
+                        {{/each}}
+                        <td>{{formatNumber (divide metrosSuperficie.total 2)}}</td>
+                        <td>{{formatNumber metrosSuperficie.total}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Sección 2: DAÑOS ACUMULADOS - REPORTE DE DAÑOS ACUMULADOS -->
+    <div class="section">
+        <div class="section-title">DAÑOS ACUMULADOS - REPORTE DE DAÑOS ACUMULADOS</div>
+        
+        <!-- Tarjetas de resumen -->
+        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+            <div class="stat-card" style="background: #6c5ce7; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div class="stat-number" style="font-size: 18px; font-weight: bold;">{{formatNumber danosAcumulados.totalReal}}</div>
+                <div class="stat-label" style="font-size: 12px;">Total Real</div>
+            </div>
+            <div class="stat-card" style="background: #6c5ce7; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div class="stat-number" style="font-size: 18px; font-weight: bold;">{{formatNumber danosAcumulados.totalPresupuesto}}</div>
+                <div class="stat-label" style="font-size: 12px;">Total Presupuesto</div>
+            </div>
+            <div class="stat-card" style="background: #6c5ce7; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div class="stat-number" style="font-size: 18px; font-weight: bold;">${{formatNumber danosAcumulados.totalValorReal}}</div>
+                <div class="stat-label" style="font-size: 12px;">Valor Real</div>
+            </div>
+            <div class="stat-card" style="background: #6c5ce7; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                <div class="stat-number" style="font-size: 18px; font-weight: bold;">${{formatNumber danosAcumulados.totalValorPresupuesto}}</div>
+                <div class="stat-label" style="font-size: 12px;">Valor Presupuesto</div>
+            </div>
+        </div>
+        
+        <!-- Tabla detallada -->
+        <table class="danos-table">
+            <thead>
+                <tr>
+                    <th>Mes</th>
+                    <th>Real</th>
+                    <th>Presupuesto</th>
+                    <th>Valor Real</th>
+                    <th>Valor Presupuesto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each danosAcumulados.datos}}
+                <tr>
+                    <td>{{mes}}</td>
+                    <td>${{formatNumber real}}</td>
+                    <td>${{formatNumber presupuesto}}</td>
+                    <td>${{formatNumber valorReal}}</td>
+                    <td>${{formatNumber valorPresupuesto}}</td>
+                </tr>
+                {{/each}}
+                <tr class="total-row">
+                    <td><strong>TOTAL</strong></td>
+                    <td><strong>${{formatNumber danosAcumulados.totalReal}}</strong></td>
+                    <td><strong>${{formatNumber danosAcumulados.totalPresupuesto}}</strong></td>
+                    <td><strong>${{formatNumber danosAcumulados.totalValorReal}}</strong></td>
+                    <td><strong>${{formatNumber danosAcumulados.totalValorPresupuesto}}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Sección 3: Gráficos de Daños Acumulados -->
+    <div class="section">
+        <div class="charts-container">
+            <!-- Gráfico 1: N° Daños Acumulados -->
+            <div class="chart">
+                <div class="chart-title">N° Daños Acumulados {{year}} (Real / Ppto)</div>
+                <div class="chart-data">
+                    {{#each danosAcumulados.grafico}}
+                    <div class="chart-row">
+                        <span class="chart-label">{{mes}}-{{../year}}</span>
+                        <span class="chart-value">{{real}} / {{presupuesto}}</span>
+                    </div>
+                    {{/each}}
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <span class="legend-color color-blue"></span>Daños Ppto Ac
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color color-red"></span>Daños Real Ac
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color color-yellow"></span>Daños Año Ant.
+                    </div>
+                </div>
+                <div class="indicators">
+                    <span class="indicator indicator-red"></span>
+                    <span class="indicator indicator-orange"></span>
+                    <span class="indicator indicator-green"></span>
+                </div>
+            </div>
+            
+            <!-- Gráfico 2: Valores $ -->
+            <div class="chart">
+                <div class="chart-title">N° Daños Acumulados {{year}} Valores ($) (Real / Ppto)</div>
+                <div class="chart-data">
+                    {{#each danosAcumulados.grafico}}
+                    <div class="chart-row">
+                        <span class="chart-label">{{mes}}-{{../year}}</span>
+                        <span class="chart-value">MM$ {{divide valorReal 1000000}} / MM$ {{divide valorPresupuesto 1000000}}</span>
+                    </div>
+                    {{/each}}
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <span class="legend-color color-blue"></span>Daños Ppto Ac
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color color-red"></span>Daños Real Ac
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color color-yellow"></span>Daños Año Ant.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección 3: Daños del Año -->
+    <div class="section page-break">
+        <div class="section-title">AÑO {{year}}</div>
+        
+        <!-- Resumen por Género -->
+        <table class="danos-table">
+            <thead>
+                <tr>
+                    <th>Zonas</th>
+                    {{#each (getMeses)}}
+                        <th>{{this}}</th>
+                    {{/each}}
+                    <th>Total Anual</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Hembra</td>
+                    {{#each (getMeses)}}
+                        <td>{{getDanoPorGenero ../danosPorGenero.hembra.datos @index}}<span class="status-indicator status-{{getStatusColor (getDanoPorGenero ../danosPorGenero.hembra.datos @index)}}"></span></td>
+                    {{/each}}
+                    <td class="total-row">{{danosPorGenero.hembra.total}}<span class="status-indicator status-green"></span></td>
+                </tr>
+                <tr>
+                    <td>Macho</td>
+                    {{#each (getMeses)}}
+                        <td>{{getDanoPorGenero ../danosPorGenero.macho.datos @index}}<span class="status-indicator status-{{getStatusColor (getDanoPorGenero ../danosPorGenero.macho.datos @index)}}"></span></td>
+                    {{/each}}
+                    <td class="total-row">{{danosPorGenero.macho.total}}<span class="status-indicator status-orange"></span></td>
+                </tr>
+                <tr class="total-row">
+                    <td>Totales</td>
+                    {{#each (getMeses)}}
+                        <td>{{add (getDanoPorGenero ../danosPorGenero.hembra.datos @index) (getDanoPorGenero ../danosPorGenero.macho.datos @index)}}<span class="status-indicator status-{{getStatusColor (add (getDanoPorGenero ../danosPorGenero.hembra.datos @index) (getDanoPorGenero ../danosPorGenero.macho.datos @index))}}"></span></td>
+                    {{/each}}
+                    <td>{{danosPorGenero.total}}<span class="status-indicator status-orange"></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Sección 4: Consolidado -->
+    <div class="section">
+        <div class="section-title">CONSOLIDADO HEMBRAS Y MACHOS</div>
+        
+        <table class="danos-table">
+            <thead>
+                <tr>
+                    <th>Zonas 1-2-3</th>
+                    {{#each (getMeses)}}
+                        <th>{{this}}</th>
+                    {{/each}}
+                    <th>Total Anual</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each datosConsolidados.operadores}}
+                <tr>
+                    <td>{{nombre}}</td>
+                    {{#each (getMeses)}}
+                        <td>{{getOperadorMes ../meses @index}}<span class="status-indicator status-{{getStatusColor (getOperadorMes ../meses @index)}}"></span></td>
+                    {{/each}}
+                    <td class="total-row">{{total}}<span class="status-indicator status-{{getStatusColor total}}"></span></td>
+                </tr>
+                {{/each}}
+                <tr class="total-row">
+                    <td>Totales</td>
+                    {{#each (getMeses)}}
+                        <td>{{getTotalMes ../datosConsolidados.operadores @index}}<span class="status-indicator status-{{getStatusColor (getTotalMes ../datosConsolidados.operadores @index)}}"></span></td>
+                    {{/each}}
+                    <td>{{datosConsolidados.total}}<span class="status-indicator status-yellow"></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Informe generado automáticamente el {{formatDate (now)}}</p>
+        <p>Sistema de Gestión de Daños - {{year}}</p>
+    </div>
+</body>
+</html>
+
+

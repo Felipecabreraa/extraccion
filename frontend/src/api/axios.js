@@ -6,7 +6,7 @@ const resolvedBaseURL =
   process.env.REACT_APP_API_URL ||
   (process.env.NODE_ENV === 'production'
     ? 'https://extraccion-backend-test.onrender.com/api'
-    : 'http://localhost:3001/api');
+    : 'http://localhost:3000/api');
 
 const api = axios.create({
   baseURL: resolvedBaseURL,

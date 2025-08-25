@@ -1,3 +1,9 @@
+// Cargar variables de entorno al inicio
+require('../config-db.js');
+console.log('🔧 Variables de entorno cargadas desde config-db.js');
+console.log('📊 DB_HOST:', process.env.DB_HOST);
+console.log('📊 DB_NAME:', process.env.DB_NAME);
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -28,6 +34,9 @@ const bulkUploadRoutes = require('./routes/bulkUploadRoutes');
 const danoHistoricoRoutes = require('./routes/danoHistoricoRoutes');
 const metrosSuperficieRoutes = require('./routes/metrosSuperficieRoutes');
 const danosAcumuladosRoutes = require('./routes/danosAcumuladosRoutes');
+const reportePDFRoutes = require('./routes/reportePDFRoutes');
+const generadorPDFRoutes = require('./routes/generadorPDFRoutes');
+const generadorPDFRoutesSimple = require('./routes/generadorPDFRoutesSimple');
 
 const app = express();
 
@@ -37,6 +46,7 @@ app.use(logger.request);
 // Configuración de CORS - SOLUCIÓN DEFINITIVA
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001',
   'https://extraccion-frontend-test.onrender.com',
   'https://extraccion-frontend.onrender.com'
 ];
@@ -194,6 +204,9 @@ app.use('/api/bulk-upload', bulkUploadRoutes);
 app.use('/api/danos-historicos', danoHistoricoRoutes);
 app.use('/api/metros-superficie', metrosSuperficieRoutes);
 app.use('/api/danos-acumulados', danosAcumuladosRoutes);
+app.use('/api/reportes-pdf', reportePDFRoutes);
+app.use('/api/generador-pdf', generadorPDFRoutes);
+app.use('/api/generador-pdf-simple', generadorPDFRoutesSimple);
 
 // Ruta de health check
 app.get('/api/health', (req, res) => {
@@ -211,6 +224,36 @@ app.get('/api/test-direct', (req, res) => {
     message: 'Test directo funciona', 
     timestamp: new Date().toISOString(),
     route: '/api/test-direct'
+  });
+});
+
+// Ruta para WebSocket (ws)
+app.get('/ws', (req, res) => {
+  res.status(200).json({
+    message: 'WebSocket endpoint',
+    status: 'WebSocket no implementado en esta versión',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Ruta para manifest.json (PWA)
+app.get('/manifest.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json({
+    name: "Sistema de Extracción",
+    short_name: "Extracción",
+    description: "Sistema de gestión de extracción y barredores",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#000000",
+    icons: [
+      {
+        src: "/static/media/logo-rionegro.png",
+        sizes: "192x192",
+        type: "image/png"
+      }
+    ]
   });
 });
 

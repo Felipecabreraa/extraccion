@@ -48,4 +48,7 @@ const Dano = sequelize.define('Dano', {
   timestamps: false
 });
 
+// Definir asociaciones
+Dano.belongsTo(Planilla, { foreignKey: 'planilla_id', as: 'planilla' });
+
 module.exports = Dano;

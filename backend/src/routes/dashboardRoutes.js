@@ -22,8 +22,22 @@ router.get('/danos/test-predictive', dashboardController.getDanoPredictiveAnalys
 // NUEVA RUTA DE PRUEBA PARA DAÑOS POR OPERADOR (sin autenticación)
 router.get('/danos/test-por-operador', dashboardController.getDanoStatsPorOperador);
 
+// NUEVAS RUTAS DE PRUEBA PARA DESGLOSES ESPECÍFICOS (sin autenticación)
+router.get('/danos/test-por-operador-consolidado', dashboardController.getDanoStatsPorOperadorConsolidado);
+router.get('/danos/test-por-operador-hembra', dashboardController.getDanoStatsPorOperadorHembra);
+router.get('/danos/test-por-operador-macho', dashboardController.getDanoStatsPorOperadorMacho);
+
 // NUEVA RUTA DE PRUEBA PARA ANÁLISIS PETRÓLEO (sin autenticación)
 router.get('/petroleo/test-metrics', dashboardController.getPetroleoMetrics);
+
+// NUEVA RUTA DE PRUEBA PARA INVESTIGAR SECTORES SIN CLASIFICAR (sin autenticación)
+router.get('/danos/test-sectores-sin-clasificar', dashboardController.investigarSectoresSinClasificar);
+
+// RUTAS DE PRUEBA PARA DAÑOS ACUMULADOS (sin autenticación)
+router.get('/danos-acumulados', dashboardController.getDanosAcumulados);
+router.get('/danos-acumulados/vista-raw', dashboardController.getVistaRaw);
+router.get('/danos-acumulados/tabla-raw', dashboardController.getTablaRaw);
+router.post('/danos-acumulados/registro', dashboardController.crearActualizarDanosMensual);
 
 // Aplicar autenticación al resto de rutas
 router.use(authenticateToken);
@@ -33,6 +47,9 @@ router.get('/charts', dashboardController.getChartData);
 router.get('/danos', dashboardController.getDanoStats);
 router.get('/danos/predictive', dashboardController.getDanoPredictiveAnalysis);
 router.get('/danos/por-operador', dashboardController.getDanoStatsPorOperador);
+router.get('/danos/por-operador-consolidado', dashboardController.getDanoStatsPorOperadorConsolidado);
+router.get('/danos/por-operador-hembra', dashboardController.getDanoStatsPorOperadorHembra);
+router.get('/danos/por-operador-macho', dashboardController.getDanoStatsPorOperadorMacho);
 router.post('/clear-cache', dashboardController.clearCache);
 
 // NUEVAS RUTAS UNIFICADAS (con autenticación)

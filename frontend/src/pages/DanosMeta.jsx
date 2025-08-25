@@ -17,8 +17,9 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import axios from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+// import { useAuth } from '../context/AuthContext'; // Comentado para evitar warnings
 import DanosAcumuladosChart from '../components/DanosAcumuladosChart';
+import { formatCurrency, formatNumber, formatKPICurrency } from '../utils/formatters';
 
 export default function DanosMeta() {
   // const { usuario } = useAuth(); // Variable no utilizada
@@ -208,7 +209,7 @@ export default function DanosMeta() {
                   </Typography>
                 </Box>
                 <Typography variant="h4" sx={{ fontWeight: 700, color: '#222', mb: 1 }}>
-                  {metaData.configuracion.metaAnual.toLocaleString()}
+                  {formatCurrency(metaData.configuracion.metaAnual)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Objetivo {metaData.configuracion.anioActual}
@@ -228,7 +229,7 @@ export default function DanosMeta() {
                   </Typography>
                 </Box>
                 <Typography variant="h4" sx={{ fontWeight: 700, color: '#222', mb: 1 }}>
-                  {metaData.datosAnioActual.totalRealHastaAhora.toLocaleString()}
+                  {formatCurrency(metaData.datosAnioActual.totalRealHastaAhora)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   {metaData.datosAnioActual.mesesConDatos} meses con datos
@@ -277,7 +278,7 @@ export default function DanosMeta() {
                   </Typography>
                 </Box>
                 <Typography variant="h4" sx={{ fontWeight: 700, color: '#222', mb: 1 }}>
-                  {metaData.datosAnioAnterior.totalDanos.toLocaleString()}
+                  {formatCurrency(metaData.datosAnioAnterior.totalDanos)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Base para cálculo
@@ -302,10 +303,10 @@ export default function DanosMeta() {
                  Datos disponibles: {metaData.datosMensuales.length} meses
                </Typography>
                <Typography variant="body2" color="textSecondary">
-                 Meta anual: {metaData.configuracion?.metaAnual?.toLocaleString() || 'N/A'}
+                 Meta anual: {metaData.configuracion?.metaAnual ? formatCurrency(metaData.configuracion.metaAnual) : 'N/A'}
                </Typography>
                <Typography variant="body2" color="textSecondary">
-                 Real hasta ahora: {metaData.datosAnioActual?.totalRealHastaAhora?.toLocaleString() || 'N/A'}
+                 Real hasta ahora: {metaData.datosAnioActual?.totalRealHastaAhora ? formatCurrency(metaData.datosAnioActual.totalRealHastaAhora) : 'N/A'}
                </Typography>
              </CardContent>
            </Card>
@@ -346,12 +347,12 @@ export default function DanosMeta() {
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {item.danosReales.toLocaleString()}
+                          {formatCurrency(item.danosReales)}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2" color="textSecondary">
-                          {item.metaMensual.toLocaleString()}
+                          {formatCurrency(item.metaMensual)}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
@@ -364,18 +365,18 @@ export default function DanosMeta() {
                               color: `${getDiferenciaColor(item.diferencia)}.main`
                             }}
                           >
-                            {item.diferencia > 0 ? '+' : ''}{item.diferencia.toLocaleString()}
+                            {item.diferencia > 0 ? '+' : ''}{formatCurrency(item.diferencia)}
                           </Typography>
                         </Box>
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {item.acumuladoReal.toLocaleString()}
+                          {formatCurrency(item.acumuladoReal)}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2" color="textSecondary">
-                          {item.acumuladoMeta.toLocaleString()}
+                          {formatCurrency(item.acumuladoMeta)}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">

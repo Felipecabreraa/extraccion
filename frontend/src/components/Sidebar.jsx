@@ -7,8 +7,11 @@ import {
   ListItemText, 
   Divider, 
   Avatar, 
-  Typography
+  Typography,
+  IconButton
 } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import PeopleIcon from '@mui/icons-material/People';
@@ -24,7 +27,10 @@ import HistoryIcon from '@mui/icons-material/History';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TargetIcon from '@mui/icons-material/TrackChanges';
 import { useAuth } from '../context/AuthContext';
+import { useResponsive } from '../context/ResponsiveContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NAV_ITEMS } from '../config/routes';
 import logo from '../assets/logo-rionegro.png';
@@ -44,11 +50,14 @@ const iconMap = {
   'HistoryIcon': <HistoryIcon />,
   'AssessmentIcon': <AssessmentIcon />,
   'BugReportIcon': <BugReportIcon />,
-  'LocalGasStationIcon': <LocalGasStationIcon />
+  'LocalGasStationIcon': <LocalGasStationIcon />,
+  'TrendingUpIcon': <TrendingUpIcon />,
+  'TargetIcon': <TargetIcon />
 };
 
 export default function Sidebar() {
   const { logout, usuario } = useAuth();
+  const { isMobile, sidebarOpen, toggleSidebar, closeSidebar } = useResponsive();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -64,22 +73,56 @@ export default function Sidebar() {
   );
 
   return (
-    <Box
-      sx={{
-        width: 280,
-        height: '100vh',
-        backgroundColor: 'white',
-        borderRight: '1px solid #e0e0e0',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'fixed',
-        left: 0,
-        top: 0,
-        zIndex: 1200
-      }}
-    >
+    <>
+      {/* Overlay para móvil */}
+      {isMobile && sidebarOpen && (
+        <Box
+          className="sidebar-overlay open"
+          onClick={closeSidebar}
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 1150
+          }}
+        />
+      )}
+      
+      <Box
+        className={`sidebar ${isMobile ? 'sidebar-mobile' : ''} ${isMobile && sidebarOpen ? 'open' : ''}`}
+        sx={{
+          width: 280,
+          height: '100vh',
+          backgroundColor: 'white',
+          borderRight: '1px solid #e0e0e0',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          zIndex: 1200,
+          transform: isMobile && !sidebarOpen ? 'translateX(-100%)' : 'translateX(0)',
+          transition: 'transform 0.3s ease'
+        }}
+      >
       {/* Header */}
-      <Box sx={{ p: 2, textAlign: 'center', borderBottom: '1px solid #e0e0e0' }}>
+      <Box sx={{ p: 2, textAlign: 'center', borderBottom: '1px solid #e0e0e0', position: 'relative' }}>
+        {isMobile && (
+          <IconButton
+            onClick={closeSidebar}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: 'text.secondary'
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        )}
         <Avatar 
           src={logo} 
           alt="Logo Río Negro" 
@@ -140,7 +183,8 @@ export default function Sidebar() {
             {usuario?.rol || 'Rol'}
           </Typography>
         </Box>
+              </Box>
       </Box>
-    </Box>
+    </>
   );
 } 

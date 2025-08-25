@@ -64,21 +64,48 @@ const getMonthName = (month) => {
 };
 
 // Cache más agresivo para cargar más rápido
-let metricsCache = null;
-let cacheTimestamp = null;
+let metricsCache = new Map(); // Cambiar a Map para soportar múltiples claves
+let cacheTimestamp = new Map(); // Timestamp por clave
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutos (aumentado)
 
 exports.getDashboardMetrics = async (req, res) => {
   try {
     console.log('Iniciando obtención de métricas del dashboard...');
     
+    // Obtener parámetros de filtro primero
+    const { origen, year } = req.query;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    
+    // Crear clave única para el cache basada en los parámetros
+    const cacheKey = `year_${currentYear}_origen_${origen || 'todos'}`;
+    
     // Verificar si el cache está invalidado por cambios en daños
     const isCacheInvalid = danoController.isDashboardCacheInvalid();
     
     // Verificar cache primero (más agresivo)
-    if (metricsCache && cacheTimestamp && (Date.now() - cacheTimestamp) < CACHE_DURATION && !isCacheInvalid) {
-      console.log('Sirviendo datos desde cache (rápido)');
-      return res.json(metricsCache);
+    const cachedData = metricsCache.get(cacheKey);
+    const cachedTimestamp = cacheTimestamp.get(cacheKey);
+    
+    // TEMPORAL: Deshabilitar cache para probar la corrección de daños
+    const forceRefresh = true; // Cambiar a false para habilitar cache nuevamente
+    
+    if (cachedData && cachedTimestamp && (Date.now() - cachedTimestamp) < CACHE_DURATION && !isCacheInvalid && !forceRefresh) {
+      console.log(`Sirviendo datos desde cache (rápido) para clave: ${cacheKey}`);
+      
+      // CORRECCIÓN: Actualizar la metadata con el año correcto antes de devolver el cache
+      const responseWithUpdatedMetadata = {
+        ...cachedData,
+        metadata: {
+          ...cachedData.metadata,
+          year: currentYear,
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      return res.json(responseWithUpdatedMetadata);
     }
     
     // Si el cache está invalidado, resetearlo
@@ -90,13 +117,6 @@ exports.getDashboardMetrics = async (req, res) => {
     // Configurar timeout más corto para consultas más rápidas
     const queryTimeout = 8000; // 8 segundos para consultas más complejas
     
-    // Obtener parámetros de filtro
-    const { origen, year } = req.query;
-    const currentYear = year ? parseInt(year) : new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
-    const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-    
     // Construir filtros para la vista unificada
     let whereClause = 'WHERE YEAR(fechaOrdenServicio) = ?';
     let params = [currentYear];
@@ -106,6 +126,10 @@ exports.getDashboardMetrics = async (req, res) => {
       params.push(origen);
     }
     
+    // CORRECCIÓN: Si el año es posterior al 2025, mostrar datos vacíos (no forzar WHERE 1 = 0)
+    // Esto permite que la consulta se ejecute pero no devuelva datos para años futuros
+    // ya que la vista solo contiene datos de 2025
+    
     // 1. Métricas básicas desde la vista unificada (incluyendo mts2) - CORREGIDO
     const [totalPlanillasResult] = await sequelize.query(`
       SELECT 
@@ -114,7 +138,7 @@ exports.getDashboardMetrics = async (req, res) => {
         COALESCE(SUM(cantLimpiar), 0) as total_pabellones_limpiados,
         COALESCE(SUM(mts2), 0) as total_mts2,
         COALESCE(SUM(cantidadDano), 0) as total_danos
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
     `, { 
       replacements: params,
@@ -129,7 +153,7 @@ exports.getDashboardMetrics = async (req, res) => {
         SELECT 
           idOrdenServicio,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
+        FROM vw_ordenes_unificada_completa
         ${whereClause}
         GROUP BY idOrdenServicio
       ) as planillas_unicas
@@ -144,7 +168,7 @@ exports.getDashboardMetrics = async (req, res) => {
     // Planillas activas: las que tienen fechaFinOrdenServicio NULL o igual a fechaOrdenServicio
     const [planillasActivasResult] = await sequelize.query(`
       SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       AND (fechaFinOrdenServicio IS NULL OR fechaFinOrdenServicio = fechaOrdenServicio)
     `, { 
@@ -155,7 +179,7 @@ exports.getDashboardMetrics = async (req, res) => {
     // Planillas completadas: las que tienen fechaFinOrdenServicio diferente a fechaOrdenServicio
     const [planillasCompletadasResult] = await sequelize.query(`
       SELECT COUNT(DISTINCT idOrdenServicio) as cantidad
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       AND fechaFinOrdenServicio IS NOT NULL 
       AND fechaFinOrdenServicio != fechaOrdenServicio
@@ -175,11 +199,11 @@ exports.getDashboardMetrics = async (req, res) => {
         COUNT(DISTINCT idOrdenServicio) as planillas_mes,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_mes,
         COALESCE(SUM(mts2), 0) as mts2_mes
-      FROM vw_ordenes_2025_actual
-      WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
+      FROM vw_ordenes_unificada_completa
+      ${whereClause} AND MONTH(fechaOrdenServicio) = ?
       ${origen ? 'AND source = ?' : ''}
     `, { 
-      replacements: origen ? [currentYear, currentMonth, origen] : [currentYear, currentMonth],
+      replacements: [...params, currentMonth, ...(origen ? [origen] : [])],
       timeout: queryTimeout 
     });
     
@@ -191,13 +215,13 @@ exports.getDashboardMetrics = async (req, res) => {
         SELECT 
           idOrdenServicio,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
-        WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
+        FROM vw_ordenes_unificada_completa
+        ${whereClause} AND MONTH(fechaOrdenServicio) = ?
         ${origen ? 'AND source = ?' : ''}
         GROUP BY idOrdenServicio
       ) as planillas_mes_unicas
     `, { 
-      replacements: origen ? [currentYear, currentMonth, origen] : [currentYear, currentMonth],
+      replacements: [...params, currentMonth, ...(origen ? [origen] : [])],
       timeout: queryTimeout 
     });
     
@@ -207,11 +231,11 @@ exports.getDashboardMetrics = async (req, res) => {
         COUNT(DISTINCT idOrdenServicio) as planillas_mes_anterior,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_mes_anterior,
         COALESCE(SUM(mts2), 0) as mts2_mes_anterior
-      FROM vw_ordenes_2025_actual
-      WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
+      FROM vw_ordenes_unificada_completa
+      ${whereClause} AND MONTH(fechaOrdenServicio) = ?
       ${origen ? 'AND source = ?' : ''}
     `, { 
-      replacements: origen ? [previousYear, previousMonth, origen] : [previousYear, previousMonth],
+      replacements: [...params, previousMonth, ...(origen ? [origen] : [])],
       timeout: queryTimeout 
     });
     
@@ -223,13 +247,13 @@ exports.getDashboardMetrics = async (req, res) => {
         SELECT 
           idOrdenServicio,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
-        WHERE YEAR(fechaOrdenServicio) = ? AND MONTH(fechaOrdenServicio) = ?
+        FROM vw_ordenes_unificada_completa
+        ${whereClause} AND MONTH(fechaOrdenServicio) = ?
         ${origen ? 'AND source = ?' : ''}
         GROUP BY idOrdenServicio
       ) as planillas_mes_anterior_unicas
     `, { 
-      replacements: origen ? [previousYear, previousMonth, origen] : [previousYear, previousMonth],
+      replacements: [...params, previousMonth, ...(origen ? [origen] : [])],
       timeout: queryTimeout 
     });
     
@@ -240,13 +264,13 @@ exports.getDashboardMetrics = async (req, res) => {
         COUNT(DISTINCT idOrdenServicio) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones,
         COALESCE(SUM(mts2), 0) as mts2
-      FROM vw_ordenes_2025_actual
-      WHERE fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+      FROM vw_ordenes_unificada_completa
+      ${whereClause} AND fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
       ${origen ? 'AND source = ?' : ''}
       GROUP BY MONTH(fechaOrdenServicio)
       ORDER BY mes ASC
     `, { 
-      replacements: origen ? [origen] : [],
+      replacements: [...params, ...(origen ? [origen] : [])],
       timeout: queryTimeout 
     });
     
@@ -260,15 +284,15 @@ exports.getDashboardMetrics = async (req, res) => {
           idOrdenServicio,
           fechaOrdenServicio,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
-        WHERE fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+        FROM vw_ordenes_unificada_completa
+        ${whereClause} AND fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
         ${origen ? 'AND source = ?' : ''}
         GROUP BY idOrdenServicio, fechaOrdenServicio
       ) as planillas_mensuales_unicas
       GROUP BY MONTH(fechaOrdenServicio)
       ORDER BY mes ASC
     `, { 
-      replacements: origen ? [origen] : [],
+      replacements: [...params, ...(origen ? [origen] : [])],
       timeout: queryTimeout 
     });
     
@@ -279,7 +303,7 @@ exports.getDashboardMetrics = async (req, res) => {
         COUNT(DISTINCT idOrdenServicio) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total,
         COALESCE(SUM(mts2), 0) as mts2_total
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreSector
       ORDER BY pabellones_total DESC
@@ -299,7 +323,7 @@ exports.getDashboardMetrics = async (req, res) => {
           idOrdenServicio,
           nombreSector,
           MAX(cantidadPabellones) as cantidadPabellones
-        FROM vw_ordenes_2025_actual
+        FROM vw_ordenes_unificada_completa
         ${whereClause}
         GROUP BY idOrdenServicio, nombreSector
       ) as planillas_sector_unicas
@@ -326,7 +350,35 @@ exports.getDashboardMetrics = async (req, res) => {
       Pabellon.count({ timeout: queryTimeout })
     ]);
 
-    console.log('Métricas obtenidas desde vista unificada vw_ordenes_2025_actual');
+    // 7. Calcular daños registrados del año seleccionado
+    let danosMes = 0;
+    const actualYear = new Date().getFullYear();
+    
+    console.log(`🔍 Calculando daños para año ${currentYear} (año actual: ${actualYear})`);
+    
+    // Si el año seleccionado es posterior al actual, los daños deben ser 0
+    if (currentYear <= actualYear) {
+      console.log(`📊 Calculando daños reales para año ${currentYear}...`);
+      // Calcular daños reales del año seleccionado
+      const danosResult = await Dano.count({
+        where: {
+          planilla_id: {
+            [Op.in]: sequelize.literal(`(
+              SELECT id FROM planilla 
+              WHERE YEAR(fecha_inicio) = ${currentYear}
+            )`)
+          }
+        },
+        timeout: queryTimeout
+      });
+      danosMes = danosResult || 0;
+      console.log(`✅ Daños calculados para año ${currentYear}: ${danosMes}`);
+    } else {
+      console.log(`🚫 Año ${currentYear} es futuro, daños establecidos en 0`);
+    }
+    // Si el año seleccionado es posterior al actual, danosMes ya está en 0
+
+    console.log('Métricas obtenidas desde vista unificada vw_ordenes_unificada_completa');
 
     // Cálculo de eficiencia real
     const eficienciaActual = totalPlanillas > 0 ? 
@@ -425,9 +477,16 @@ exports.getDashboardMetrics = async (req, res) => {
       // Eficiencia
       eficienciaGlobal: eficienciaActual,
       
-      // Daños (mantener por ahora)
-      danosMes: 3,
+      // Daños calculados dinámicamente
+      danosMes: danosMes,
       danosPorTipo: [],
+      
+      // DEBUG: Log del valor final de daños
+      _debugDanos: {
+        valorCalculado: danosMes,
+        añoSeleccionado: currentYear,
+        añoActual: actualYear
+      },
       
       // Alertas
       alertas,
@@ -448,19 +507,31 @@ exports.getDashboardMetrics = async (req, res) => {
     };
 
     // Guardar en cache
-    metricsCache = response;
-    cacheTimestamp = Date.now();
+    metricsCache.set(cacheKey, response);
+    cacheTimestamp.set(cacheKey, Date.now());
 
-    console.log('Respuesta preparada con datos reales desde vista unificada vw_ordenes_2025_actual');
+    console.log('Respuesta preparada con datos reales desde vista unificada vw_ordenes_unificada_completa');
     res.json(response);
 
   } catch (error) {
     console.error('Error obteniendo métricas del dashboard:', error);
     
     // Si hay cache disponible, servir desde cache en caso de error
-    if (metricsCache) {
-      console.log('Sirviendo datos desde cache debido a error');
-      return res.json(metricsCache);
+    const cachedData = metricsCache.get(cacheKey);
+    if (cachedData) {
+      console.log(`Sirviendo datos desde cache debido a error para clave: ${cacheKey}`);
+      
+      // CORRECCIÓN: Actualizar la metadata con el año correcto antes de devolver el cache
+      const responseWithUpdatedMetadata = {
+        ...cachedData,
+        metadata: {
+          ...cachedData.metadata,
+          year: currentYear,
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      return res.json(responseWithUpdatedMetadata);
     }
     
     // Respuesta de fallback rápida - incluyendo mts2
@@ -524,12 +595,16 @@ exports.getChartData = async (req, res) => {
       params.push(origen);
     }
     
+    // CORRECCIÓN: Si el año es posterior al 2025, mostrar datos vacíos (no forzar WHERE 1 = 0)
+    // Esto permite que la consulta se ejecute pero no devuelva datos para años futuros
+    // ya que la vista solo contiene datos de 2025
+    
     // 1. Planillas por estado desde vista unificada
     const [planillasPorEstadoResult] = await sequelize.query(`
       SELECT 
         nombreEstado as estado,
         COUNT(*) as cantidad
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreEstado
       ORDER BY cantidad DESC
@@ -544,13 +619,13 @@ exports.getChartData = async (req, res) => {
         DATE_FORMAT(fechaOrdenServicio, '%Y-%m') as periodo,
         COUNT(*) as cantidad,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total
-      FROM vw_ordenes_2025_actual
-      WHERE fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+      FROM vw_ordenes_unificada_completa
+      ${whereClause} AND fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
       ${origen ? 'AND source = ?' : ''}
       GROUP BY DATE_FORMAT(fechaOrdenServicio, '%Y-%m')
       ORDER BY periodo ASC
     `, { 
-      replacements: origen ? [origen] : [],
+      replacements: [...params, ...(origen ? [origen] : [])],
       timeout: queryTimeout 
     });
     
@@ -561,7 +636,7 @@ exports.getChartData = async (req, res) => {
         COUNT(*) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total,
         COALESCE(SUM(cantLimpiar), 0) as pabellones_limpiados
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreSector
       ORDER BY pabellones_total DESC
@@ -602,7 +677,7 @@ exports.getChartData = async (req, res) => {
       }
     };
 
-    console.log('Datos de gráficos obtenidos desde vista unificada vw_ordenes_2025_actual');
+    console.log('Datos de gráficos obtenidos desde vista unificada vw_ordenes_unificada_completa');
     res.json(response);
 
   } catch (error) {
@@ -627,8 +702,8 @@ exports.getChartData = async (req, res) => {
 // Endpoint para limpiar cache (útil para desarrollo)
 exports.clearCache = async (req, res) => {
   try {
-    metricsCache = null;
-    cacheTimestamp = null;
+    metricsCache.clear();
+    cacheTimestamp.clear();
     console.log('Cache limpiado');
     res.json({ message: 'Cache limpiado exitosamente' });
   } catch (error) {
@@ -662,6 +737,10 @@ exports.getUnifiedStats = async (req, res) => {
       params.push(currentMonth);
     }
     
+    // CORRECCIÓN: Si el año es posterior al 2025, mostrar datos vacíos (no forzar WHERE 1 = 0)
+    // Esto permite que la consulta se ejecute pero no devuelva datos para años futuros
+    // ya que la vista solo contiene datos de 2025
+    
     // 1. Resumen general desde vista unificada
     const [resumenResult] = await sequelize.query(`
       SELECT 
@@ -670,7 +749,7 @@ exports.getUnifiedStats = async (req, res) => {
         COALESCE(SUM(cantLimpiar), 0) as total_pabellones_limpiados,
         COALESCE(AVG(cantidadPabellones), 0) as promedio_pabellones_por_planilla,
         COUNT(DISTINCT nombreSector) as sectores_activos
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
     `, { 
       replacements: params,
@@ -683,7 +762,7 @@ exports.getUnifiedStats = async (req, res) => {
         nombreEstado as estado,
         COUNT(*) as cantidad,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreEstado
       ORDER BY cantidad DESC
@@ -699,7 +778,7 @@ exports.getUnifiedStats = async (req, res) => {
         COUNT(*) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total,
         COALESCE(SUM(cantLimpiar), 0) as pabellones_limpiados
-      FROM vw_ordenes_2025_actual
+      FROM vw_ordenes_unificada_completa
       ${whereClause}
       GROUP BY nombreSupervisor
       ORDER BY pabellones_total DESC
@@ -716,13 +795,13 @@ exports.getUnifiedStats = async (req, res) => {
         COUNT(*) as planillas,
         COALESCE(SUM(cantidadPabellones), 0) as pabellones_total,
         COALESCE(SUM(cantLimpiar), 0) as pabellones_limpiados
-      FROM vw_ordenes_2025_actual
-      WHERE fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+      FROM vw_ordenes_unificada_completa
+      ${whereClause} AND fechaOrdenServicio >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
       ${origen ? 'AND source = ?' : ''}
       GROUP BY DATE_FORMAT(fechaOrdenServicio, '%Y-%m')
       ORDER BY periodo ASC
     `, { 
-      replacements: origen ? [origen] : [],
+      replacements: [...params, ...(origen ? [origen] : [])],
       timeout: queryTimeout 
     });
 
@@ -761,7 +840,7 @@ exports.getUnifiedStats = async (req, res) => {
       }
     };
 
-    console.log('Estadísticas unificadas obtenidas desde vista vw_ordenes_2025_actual');
+    console.log('Estadísticas unificadas obtenidas desde vista vw_ordenes_unificada_completa');
     res.json(response);
 
   } catch (error) {
@@ -1566,17 +1645,22 @@ exports.getPetroleoMetrics = async (req, res) => {
   try {
     console.log('🔍 Iniciando obtención de métricas de consumo de petróleo...');
     
+    // Definir timeout para consultas
+    const queryTimeout = 10000; // 10 segundos para consultas complejas
+    
     // Obtener parámetros de filtro
     const { origen, year, month } = req.query;
     const currentYear = year ? parseInt(year) : new Date().getFullYear();
     const currentMonth = month && month !== 'todos' ? parseInt(month) : null;
     
     // Construir filtros para la vista unificada - usar TODOS los datos de vw_ordenes_unificada_completa
-    let whereClause = `WHERE YEAR(fechaOrdenServicio) = ${currentYear} AND litrosPetroleo IS NOT NULL AND litrosPetroleo > 0`;
+    let whereClause = 'WHERE YEAR(fechaOrdenServicio) = ? AND litrosPetroleo IS NOT NULL AND litrosPetroleo > 0';
+    let params = [currentYear];
     
     // Agregar filtro de mes si se especifica
     if (currentMonth) {
-      whereClause += ` AND MONTH(fechaOrdenServicio) = ${currentMonth}`;
+      whereClause += ' AND MONTH(fechaOrdenServicio) = ?';
+      params.push(currentMonth);
     }
     
     // No aplicar filtro de source para usar todos los datos de la vista unificada
@@ -1607,7 +1691,10 @@ exports.getPetroleoMetrics = async (req, res) => {
       GROUP BY nroMaquina
       HAVING totalLitros > 0
       ORDER BY totalLitros DESC
-    `);
+    `, { 
+      replacements: params,
+      timeout: queryTimeout 
+    });
 
     // 2. Estadísticas generales de consumo de petróleo - CORREGIDO (lógica correcta)
     const [estadisticasGeneralesResult] = await sequelize.query(`
@@ -1652,7 +1739,10 @@ exports.getPetroleoMetrics = async (req, res) => {
         FROM vw_ordenes_unificada_completa
         ${whereClause}
       ) as datos_agrupados
-    `);
+    `, { 
+      replacements: params,
+      timeout: queryTimeout 
+    });
 
     const estadisticas = estadisticasGeneralesResult[0];
     
@@ -1696,7 +1786,10 @@ exports.getPetroleoMetrics = async (req, res) => {
       GROUP BY DATE_FORMAT(fechaOrdenServicio, '%Y-%m'), DATE_FORMAT(fechaOrdenServicio, '%Y'), MONTH(fechaOrdenServicio)
       ORDER BY mes DESC
       LIMIT 12
-    `);
+    `, { 
+      replacements: params,
+      timeout: queryTimeout 
+    });
 
     // 4. Top máquinas con mayor consumo de petróleo
     const topMaquinasMayorConsumo = litrosPorMaquinaResult
@@ -1729,7 +1822,10 @@ exports.getPetroleoMetrics = async (req, res) => {
       GROUP BY nombreSector
       HAVING totalLitros > 0
       ORDER BY totalLitros DESC
-    `);
+    `, { 
+      replacements: params,
+      timeout: queryTimeout 
+    });
 
     // Calcular total de litros para validación
     const totalLitrosGlobal = parseFloat(estadisticas.totalLitrosConsumidos);
@@ -1790,7 +1886,10 @@ exports.getPetroleoMetrics = async (req, res) => {
       GROUP BY nroMaquina
       HAVING totalLitros > 0
       ORDER BY litrosPorPabellon ASC
-    `);
+    `, { 
+      replacements: params,
+      timeout: queryTimeout 
+    });
 
     // Calcular métricas adicionales
     const litrosPorPabellonGlobal = estadisticas.litrosPorPabellonGlobal;
@@ -1851,7 +1950,10 @@ exports.getPetroleoMetrics = async (req, res) => {
       GROUP BY nroMaquina
       HAVING totalKmRecorridos > 0
       ORDER BY totalKmRecorridos DESC
-    `);
+    `, { 
+      replacements: params,
+      timeout: queryTimeout 
+    });
 
     // Procesar datos de kilómetros
     const kmPorMaquina = kmPorMaquinaResult.map(maquina => ({
@@ -2228,8 +2330,31 @@ exports.getDanosAcumulados = async (req, res) => {
       }
     }
     
-    // Preparar datos para gráficos
+    // 🔄 LÓGICA CORREGIDA: Presupuesto fijo, Real dinámico hasta mes actual
     const datosGrafico = [];
+    
+    // Obtener mes actual del calendario
+    const fechaActual = new Date();
+    const mesActual = fechaActual.getMonth() + 1; // getMonth() devuelve 0-11
+    const anioActual = fechaActual.getFullYear();
+    
+    // Determinar hasta qué mes mostrar datos reales
+    let mesLimiteReal = 12;
+    if (currentYear === anioActual) {
+      // Si es el año actual, mostrar hasta el mes actual del calendario
+      mesLimiteReal = mesActual;
+    } else if (currentYear < anioActual) {
+      // Si es un año anterior, mostrar todos los meses
+      mesLimiteReal = 12;
+    } else {
+      // Si es un año futuro, no mostrar datos reales
+      mesLimiteReal = 0;
+    }
+    
+    console.log(`📅 Fecha actual: ${fechaActual.toLocaleDateString('es-CL')}`);
+    console.log(`📊 Año consulta: ${currentYear}, Año actual: ${anioActual}, Mes actual: ${mesActual}`);
+    console.log(`📈 Mes límite para datos reales: ${mesLimiteReal} (${getMonthName(mesLimiteReal)})`);
+    
     for (let mes = 1; mes <= 12; mes++) {
       const datosMes = {
         mes: mes,
@@ -2237,17 +2362,50 @@ exports.getDanosAcumulados = async (req, res) => {
         abreviacion: getMonthName(mes).substring(0, 3)
       };
       
-      // Datos del año actual
-      if (datosPorAnio[currentYear] && datosPorAnio[currentYear].meses[mes]) {
-        datosMes.real_acumulado = datosPorAnio[currentYear].meses[mes].real_acumulado;
-        datosMes.ppto_acumulado = datosPorAnio[currentYear].meses[mes].ppto_acumulado;
-        datosMes.real_acumulado_formateado = datosPorAnio[currentYear].meses[mes].real_acumulado_formateado;
-        datosMes.ppto_acumulado_formateado = datosPorAnio[currentYear].meses[mes].ppto_acumulado_formateado;
+      // Obtener datos del mes desde la vista
+      const datosMesVista = datosPorAnio[currentYear]?.meses[mes];
+      
+      // VALOR REAL Y PRESUPUESTO: Datos individuales del mes
+      datosMes.valor_real = datosMesVista ? datosMesVista.valor_real : 0;
+      datosMes.valor_ppto = datosMesVista ? datosMesVista.valor_ppto : 3000000; // Presupuesto fijo
+      datosMes.valor_real_formateado = formatCurrency(datosMes.valor_real);
+      datosMes.valor_ppto_formateado = formatCurrency(datosMes.valor_ppto);
+      
+      // PRESUPUESTO: Siempre fijo de $3M mensual hasta diciembre
+      const presupuestoMensual = 3000000; // $3M
+      datosMes.ppto_acumulado = presupuestoMensual * mes;
+      datosMes.ppto_acumulado_formateado = formatCurrency(datosMes.ppto_acumulado);
+      
+      // REAL ACUMULADO: Se extiende hasta el mes actual del calendario
+      if (mes <= mesLimiteReal) {
+        // Meses hasta el mes actual: mostrar datos reales acumulados
+        if (datosPorAnio[currentYear] && datosPorAnio[currentYear].meses[mes]) {
+          // Usar el real acumulado calculado (mantiene valor anterior si no hay datos nuevos)
+          datosMes.real_acumulado = datosPorAnio[currentYear].meses[mes].real_acumulado;
+          datosMes.real_acumulado_formateado = datosPorAnio[currentYear].meses[mes].real_acumulado_formateado;
+        } else {
+          // No hay datos para este mes - buscar el último valor acumulado conocido
+          let ultimoValorConocido = 0;
+          for (let mesAnterior = mes - 1; mesAnterior >= 1; mesAnterior--) {
+            if (datosPorAnio[currentYear] && datosPorAnio[currentYear].meses[mesAnterior]) {
+              ultimoValorConocido = datosPorAnio[currentYear].meses[mesAnterior].real_acumulado;
+              break;
+            }
+          }
+          datosMes.real_acumulado = ultimoValorConocido;
+          datosMes.real_acumulado_formateado = formatCurrency(ultimoValorConocido);
+        }
       } else {
-        datosMes.real_acumulado = 0;
-        datosMes.ppto_acumulado = 0;
-        datosMes.real_acumulado_formateado = formatCurrency(0);
-        datosMes.ppto_acumulado_formateado = formatCurrency(0);
+        // Meses futuros: mantener el valor del último mes con datos (línea plana)
+        let ultimoValorConocido = 0;
+        for (let mesAnterior = mesLimiteReal; mesAnterior >= 1; mesAnterior--) {
+          if (datosPorAnio[currentYear] && datosPorAnio[currentYear].meses[mesAnterior]) {
+            ultimoValorConocido = datosPorAnio[currentYear].meses[mesAnterior].real_acumulado;
+            break;
+          }
+        }
+        datosMes.real_acumulado = ultimoValorConocido;
+        datosMes.real_acumulado_formateado = formatCurrency(ultimoValorConocido);
       }
       
       // Datos del año anterior
@@ -2262,6 +2420,22 @@ exports.getDanosAcumulados = async (req, res) => {
       datosGrafico.push(datosMes);
     }
     
+    // Información del estado de datos para el frontend
+    const estadoDatos = {
+      mes_actual_calendario: mesActual,
+      nombre_mes_actual: getMonthName(mesActual),
+      mes_limite_real: mesLimiteReal,
+      nombre_mes_limite: getMonthName(mesLimiteReal),
+      presupuesto_mensual: 3000000,
+      presupuesto_anual: 36000000,
+      es_anio_actual: currentYear === anioActual,
+      descripcion: currentYear === anioActual 
+        ? `Datos reales hasta ${getMonthName(mesActual)} (mes actual) - Presupuesto fijo $3M/mes`
+        : currentYear < anioActual 
+          ? `Año histórico - Datos completos - Presupuesto fijo $3M/mes`
+          : 'Año futuro - Sin datos reales - Presupuesto fijo $3M/mes'
+    };
+    
     const response = {
       anio_actual: currentYear,
       anio_anterior: previousYear,
@@ -2269,6 +2443,7 @@ exports.getDanosAcumulados = async (req, res) => {
       datos_grafico: datosGrafico,
       meses: meses,
       variacion_anual: variacionAnual,
+      estado_datos: estadoDatos,
       kpis: {
         total_real_actual: datosPorAnio[currentYear]?.totales.real || 0,
         total_ppto_actual: datosPorAnio[currentYear]?.totales.ppto || 0,
@@ -2296,6 +2471,79 @@ exports.getDanosAcumulados = async (req, res) => {
       error: 'Error al obtener datos de daños acumulados',
       message: error.message,
       timestamp: new Date().toISOString()
+    });
+  }
+};
+
+// Endpoint temporal para verificar datos de la vista
+exports.getVistaRaw = async (req, res) => {
+  try {
+    const { anio } = req.query;
+    const currentYear = anio ? parseInt(anio) : new Date().getFullYear();
+    
+    const [datos] = await sequelize.query(`
+      SELECT 
+        anio,
+        mes,
+        valor_real,
+        valor_ppto,
+        valor_anio_ant,
+        real_acumulado,
+        ppto_acumulado,
+        anio_ant_acumulado
+      FROM vista_danos_acumulados
+      WHERE anio = ?
+      ORDER BY mes
+    `, {
+      replacements: [currentYear]
+    });
+    
+    res.json({
+      anio: currentYear,
+      datos: datos
+    });
+    
+  } catch (error) {
+    console.error('❌ Error obteniendo datos de la vista:', error);
+    res.status(500).json({
+      error: 'Error al obtener datos de la vista',
+      message: error.message
+    });
+  }
+};
+
+// Endpoint temporal para verificar datos de la tabla
+exports.getTablaRaw = async (req, res) => {
+  try {
+    const { anio } = req.query;
+    const currentYear = anio ? parseInt(anio) : new Date().getFullYear();
+    
+    const [datos] = await sequelize.query(`
+      SELECT 
+        anio,
+        mes,
+        valor_real,
+        valor_ppto,
+        valor_anio_ant,
+        fecha_creacion,
+        fecha_actualizacion
+      FROM reporte_danos_mensuales
+      WHERE anio = ?
+      ORDER BY mes
+    `, {
+      replacements: [currentYear]
+    });
+    
+    res.json({
+      anio: currentYear,
+      datos: datos
+    });
+    
+  } catch (error) {
+    console.error('❌ Error obteniendo datos de la tabla:', error);
+    res.status(500).json({
+      error: 'Error al obtener datos de la tabla',
+      message: error.message
     });
   }
 };
@@ -2992,6 +3240,706 @@ exports.actualizarDesdeMigracion = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al actualizar desde migración'
+    });
+  }
+};
+
+// NUEVO MÉTODO: Investigar sectores sin clasificar
+exports.investigarSectoresSinClasificar = async (req, res) => {
+  try {
+    console.log('🔍 Iniciando investigación de sectores sin clasificar...');
+    
+    const { year } = req.query;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+    const queryTimeout = 15000;
+    
+    // 1. Verificar sectores sin zona_id o con zona sin tipo
+    const [sectoresSinClasificarResult] = await sequelize.query(`
+      SELECT 
+        s.id as sector_id,
+        s.nombre as sector_nombre,
+        s.zona_id,
+        z.nombre as zona_nombre,
+        z.tipo as zona_tipo,
+        CASE 
+          WHEN z.tipo IS NULL THEN 'SIN_CLASIFICAR'
+          WHEN z.id IS NULL THEN 'SIN_ZONA'
+          ELSE z.tipo 
+        END as problema_tipo
+      FROM sector s
+      LEFT JOIN zona z ON s.zona_id = z.id
+      WHERE z.tipo IS NULL OR z.id IS NULL
+      ORDER BY s.nombre
+    `, { timeout: queryTimeout });
+    
+    // 2. Verificar daños por sector y su clasificación
+    const [danosPorSectorResult] = await sequelize.query(`
+      SELECT 
+        v.nombreSector,
+        COALESCE(z.tipo, 'SIN_CLASIFICAR') as tipo_zona,
+        COUNT(*) as registros,
+        SUM(v.cantidadDano) as total_danos,
+        COUNT(DISTINCT v.nombreOperador) as operadores_afectados
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      WHERE YEAR(v.fechaOrdenServicio) = ${currentYear}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY v.nombreSector, COALESCE(z.tipo, 'SIN_CLASIFICAR')
+      HAVING tipo_zona = 'SIN_CLASIFICAR'
+      ORDER BY total_danos DESC
+    `, { timeout: queryTimeout });
+    
+    // 3. Verificar todos los sectores y su estado de clasificación
+    const [todosLosSectoresResult] = await sequelize.query(`
+      SELECT 
+        s.nombre as sector_nombre,
+        s.zona_id,
+        z.nombre as zona_nombre,
+        z.tipo as zona_tipo,
+        CASE 
+          WHEN z.tipo IS NULL THEN 'SIN_CLASIFICAR'
+          WHEN z.id IS NULL THEN 'SIN_ZONA'
+          ELSE z.tipo 
+        END as estado_clasificacion
+      FROM sector s
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ORDER BY s.nombre
+    `, { timeout: queryTimeout });
+    
+    // 4. Verificar zonas sin tipo definido
+    const [zonasSinTipoResult] = await sequelize.query(`
+      SELECT 
+        z.id as zona_id,
+        z.nombre as zona_nombre,
+        z.tipo as zona_tipo,
+        COUNT(s.id) as sectores_asignados
+      FROM zona z
+      LEFT JOIN sector s ON z.id = s.zona_id
+      WHERE z.tipo IS NULL
+      GROUP BY z.id, z.nombre, z.tipo
+      ORDER BY sectores_asignados DESC
+    `, { timeout: queryTimeout });
+    
+    // 5. Resumen estadístico
+    const [resumenEstadisticoResult] = await sequelize.query(`
+      SELECT 
+        COALESCE(z.tipo, 'SIN_CLASIFICAR') as tipo_zona,
+        COUNT(DISTINCT v.nombreSector) as sectores_unicos,
+        COUNT(*) as registros,
+        SUM(v.cantidadDano) as total_danos
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      WHERE YEAR(v.fechaOrdenServicio) = ${currentYear}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY COALESCE(z.tipo, 'SIN_CLASIFICAR')
+      ORDER BY total_danos DESC
+    `, { timeout: queryTimeout });
+    
+    const response = {
+      sectoresSinClasificar: sectoresSinClasificarResult,
+      danosPorSectorSinClasificar: danosPorSectorResult,
+      todosLosSectores: todosLosSectoresResult,
+      zonasSinTipo: zonasSinTipoResult,
+      resumenEstadistico: resumenEstadisticoResult,
+      metadata: {
+        year: currentYear,
+        timestamp: new Date().toISOString(),
+        totalSectoresSinClasificar: sectoresSinClasificarResult.length,
+        totalZonasSinTipo: zonasSinTipoResult.length,
+        totalDanosSinClasificar: danosPorSectorResult.reduce((sum, item) => sum + parseInt(item.total_danos || 0), 0)
+      }
+    };
+    
+    console.log('✅ Investigación de sectores sin clasificar completada');
+    console.log(`📊 Resumen: ${sectoresSinClasificarResult.length} sectores sin clasificar, ${zonasSinTipoResult.length} zonas sin tipo`);
+    
+    res.json(response);
+  } catch (error) {
+    console.error('❌ Error al investigar sectores sin clasificar:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+// NUEVA FUNCIÓN: Daños por Operador - Desglose Consolidado (Zonas 1, 2, 3)
+exports.getDanoStatsPorOperadorConsolidado = async (req, res) => {
+  try {
+    console.log('🔄 Iniciando obtención de estadísticas de daños por operador - CONSOLIDADO (Zonas 1,2,3)...');
+    
+    // Obtener parámetros de filtro
+    const { year, origen } = req.query;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    
+    // Configurar timeout para consultas
+    const queryTimeout = 12000;
+    
+    // Construir filtros para la vista unificada - SOLO ZONAS 1, 2, 3
+    let whereClause = 'WHERE YEAR(v.fechaOrdenServicio) = ? AND s.zona_id IN (1, 2, 3)';
+    let params = [currentYear];
+    
+    if (origen && origen !== 'todos') {
+      whereClause += ' AND v.source = ?';
+      params.push(origen);
+    }
+    
+    // 1. RESUMEN ANUAL POR TIPO (HEMBRA/MACHO) - SOLO ZONAS 1, 2, 3
+    const [resumenAnualTipoResult] = await sequelize.query(`
+      SELECT 
+        COALESCE(z.tipo, 'SIN_CLASIFICAR') as tipo_zona,
+        MONTH(v.fechaOrdenServicio) as mes,
+        SUM(v.cantidadDano) as cantidad_total_danos
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ${whereClause}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY 
+        COALESCE(z.tipo, 'SIN_CLASIFICAR'),
+        MONTH(v.fechaOrdenServicio)
+      ORDER BY tipo_zona, mes
+    `, {
+      replacements: params,
+      timeout: queryTimeout
+    });
+    
+    // 2. DAÑOS MENSUALES POR OPERADOR - SOLO ZONAS 1, 2, 3
+    const [danosMensualesPorOperadorResult] = await sequelize.query(`
+      SELECT 
+        v.nombreOperador as nombre_completo,
+        MONTH(v.fechaOrdenServicio) as mes,
+        SUM(v.cantidadDano) as cantidad_total_danos,
+        COALESCE(z.tipo, 'SIN_CLASIFICAR') as tipo_zona
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ${whereClause}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY v.nombreOperador, MONTH(v.fechaOrdenServicio), COALESCE(z.tipo, 'SIN_CLASIFICAR')
+      ORDER BY v.nombreOperador, mes
+    `, {
+      replacements: params,
+      timeout: queryTimeout
+    });
+    
+    // 3. TOP OPERADORES CON MÁS DAÑOS - SOLO ZONAS 1, 2, 3
+    const [topOperadoresResult] = await sequelize.query(`
+      SELECT 
+        v.nombreOperador as nombre_completo,
+        SUM(v.cantidadDano) as cantidad_total_danos,
+        COUNT(DISTINCT MONTH(v.fechaOrdenServicio)) as meses_con_danos,
+        COUNT(DISTINCT v.idOrdenServicio) as planillas_afectadas,
+        ROUND(AVG(v.cantidadDano), 2) as promedio_danos_por_incidente
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ${whereClause.replace('v.', '')}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY v.nombreOperador
+      HAVING cantidad_total_danos > 0
+      ORDER BY cantidad_total_danos DESC
+      LIMIT 10
+    `, {
+      replacements: params,
+      timeout: queryTimeout
+    });
+    
+    // Procesar datos para el formato requerido
+    const resumenAnualTipo = {
+      HEMBRA: { total: 0, meses: {} },
+      MACHO: { total: 0, meses: {} },
+      SIN_CLASIFICAR: { total: 0, meses: {} }
+    };
+    
+    // Inicializar meses para todos los tipos
+    for (let mes = 1; mes <= 12; mes++) {
+      resumenAnualTipo.HEMBRA.meses[mes] = 0;
+      resumenAnualTipo.MACHO.meses[mes] = 0;
+      resumenAnualTipo.SIN_CLASIFICAR.meses[mes] = 0;
+    }
+    
+    // Procesar datos del resumen anual
+    resumenAnualTipoResult.forEach(item => {
+      const tipo = item.tipo_zona;
+      const mes = item.mes;
+      const total = parseInt(item.cantidad_total_danos || 0);
+      if (resumenAnualTipo[tipo]) {
+        resumenAnualTipo[tipo].meses[mes] = total;
+        resumenAnualTipo[tipo].total += total;
+      }
+    });
+    
+    // Procesar datos mensuales por operador
+    const operadoresMensuales = {};
+    const nombresMeses = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 
+      'Jul', 'Ago', 'Sept', 'Oct', 'Nov', 'Dic'
+    ];
+    
+    danosMensualesPorOperadorResult.forEach(item => {
+      const operador = item.nombre_completo;
+      const mes = item.mes;
+      const total = parseInt(item.cantidad_total_danos || 0);
+      const tipoZona = item.tipo_zona;
+      
+      if (!operadoresMensuales[operador]) {
+        operadoresMensuales[operador] = {
+          nombre: operador,
+          tipoZona: tipoZona,
+          meses: {},
+          totalAnual: 0
+        };
+        // Inicializar todos los meses en 0
+        for (let m = 1; m <= 12; m++) {
+          operadoresMensuales[operador].meses[m] = 0;
+        }
+      }
+      operadoresMensuales[operador].meses[mes] = total;
+      operadoresMensuales[operador].totalAnual += total;
+    });
+    
+    // Convertir a array y ordenar por total anual descendente
+    const operadoresArray = Object.values(operadoresMensuales)
+      .sort((a, b) => b.totalAnual - a.totalAnual);
+    
+    // Calcular totales anuales
+    const totalDanos = Object.values(resumenAnualTipo).reduce((sum, tipo) => sum + tipo.total, 0);
+    const totalesAnuales = {
+      totalOperadores: operadoresArray.length,
+      totalDanos: totalDanos,
+      cantidadTotalDanos: totalDanos,
+      totalPlanillasAfectadas: 0,
+      promedioDanosPorOperador: operadoresArray.length > 0 ? 
+        Math.round((totalDanos / operadoresArray.length) * 100) / 100 : 0
+    };
+    
+    const response = {
+      resumenAnualTipo,
+      operadoresMensuales: operadoresArray,
+      topOperadores: topOperadoresResult.map(item => ({
+        nombreCompleto: item.nombre_completo,
+        cantidadTotalDanos: parseInt(item.cantidad_total_danos || 0),
+        mesesConDanos: parseInt(item.meses_con_danos || 0),
+        planillasAfectadas: parseInt(item.planillas_afectadas || 0),
+        promedioDanosPorIncidente: parseFloat(item.promedio_danos_por_incidente || 0)
+      })),
+      totalesAnuales,
+      nombresMeses,
+      metadata: {
+        year: currentYear,
+        currentMonth: currentMonth,
+        timestamp: new Date().toISOString(),
+        fuente: 'vw_ordenes_unificada_completa con JOIN sector-zona y SUM - SOLO ZONAS 1,2,3',
+        filtros: {
+          year: currentYear,
+          origen: origen || 'todos',
+          zonas: '1, 2, 3'
+        }
+      }
+    };
+    
+    console.log('✅ Estadísticas de daños por operador - CONSOLIDADO obtenidas exitosamente');
+    console.log(`📊 Resumen: HEMBRA=${resumenAnualTipo.HEMBRA.total}, MACHO=${resumenAnualTipo.MACHO.total}, SIN_CLASIFICAR=${resumenAnualTipo.SIN_CLASIFICAR.total}, TOTAL=${totalDanos}`);
+    
+    res.json(response);
+  } catch (error) {
+    console.error('❌ Error al obtener estadísticas de daños por operador - CONSOLIDADO:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+// NUEVA FUNCIÓN: Daños por Operador - Solo Hembra (Zonas 1, 3)
+exports.getDanoStatsPorOperadorHembra = async (req, res) => {
+  try {
+    console.log('🔄 Iniciando obtención de estadísticas de daños por operador - SOLO HEMBRA (Zonas 1,3)...');
+    
+    // Obtener parámetros de filtro
+    const { year, origen } = req.query;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    
+    // Configurar timeout para consultas
+    const queryTimeout = 12000;
+    
+    // Construir filtros para la vista unificada - SOLO ZONAS 1, 3 (HEMBRA)
+    let whereClause = 'WHERE YEAR(v.fechaOrdenServicio) = ? AND s.zona_id IN (1, 3) AND z.tipo = "HEMBRA"';
+    let params = [currentYear];
+    
+    if (origen && origen !== 'todos') {
+      whereClause += ' AND v.source = ?';
+      params.push(origen);
+    }
+    
+    // 1. RESUMEN ANUAL POR TIPO - SOLO HEMBRA
+    const [resumenAnualTipoResult] = await sequelize.query(`
+      SELECT 
+        COALESCE(z.tipo, 'HEMBRA') as tipo_zona,
+        MONTH(v.fechaOrdenServicio) as mes,
+        SUM(v.cantidadDano) as cantidad_total_danos
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ${whereClause}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY 
+        COALESCE(z.tipo, 'HEMBRA'),
+        MONTH(v.fechaOrdenServicio)
+      ORDER BY tipo_zona, mes
+    `, {
+      replacements: params,
+      timeout: queryTimeout
+    });
+    
+    // 2. DAÑOS MENSUALES POR OPERADOR - SOLO HEMBRA
+    const [danosMensualesPorOperadorResult] = await sequelize.query(`
+      SELECT 
+        v.nombreOperador as nombre_completo,
+        MONTH(v.fechaOrdenServicio) as mes,
+        SUM(v.cantidadDano) as cantidad_total_danos,
+        COALESCE(z.tipo, 'HEMBRA') as tipo_zona
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ${whereClause}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY v.nombreOperador, MONTH(v.fechaOrdenServicio), COALESCE(z.tipo, 'HEMBRA')
+      ORDER BY v.nombreOperador, mes
+    `, {
+      replacements: params,
+      timeout: queryTimeout
+    });
+    
+    // 3. TOP OPERADORES CON MÁS DAÑOS - SOLO HEMBRA
+    const [topOperadoresResult] = await sequelize.query(`
+      SELECT 
+        v.nombreOperador as nombre_completo,
+        SUM(v.cantidadDano) as cantidad_total_danos,
+        COUNT(DISTINCT MONTH(v.fechaOrdenServicio)) as meses_con_danos,
+        COUNT(DISTINCT v.idOrdenServicio) as planillas_afectadas,
+        ROUND(AVG(v.cantidadDano), 2) as promedio_danos_por_incidente
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ${whereClause.replace('v.', '')}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY v.nombreOperador
+      HAVING cantidad_total_danos > 0
+      ORDER BY cantidad_total_danos DESC
+      LIMIT 10
+    `, {
+      replacements: params,
+      timeout: queryTimeout
+    });
+    
+    // Procesar datos para el formato requerido
+    const resumenAnualTipo = {
+      HEMBRA: { total: 0, meses: {} }
+    };
+    
+    // Inicializar meses para HEMBRA
+    for (let mes = 1; mes <= 12; mes++) {
+      resumenAnualTipo.HEMBRA.meses[mes] = 0;
+    }
+    
+    // Procesar datos del resumen anual
+    resumenAnualTipoResult.forEach(item => {
+      const tipo = item.tipo_zona;
+      const mes = item.mes;
+      const total = parseInt(item.cantidad_total_danos || 0);
+      if (resumenAnualTipo[tipo]) {
+        resumenAnualTipo[tipo].meses[mes] = total;
+        resumenAnualTipo[tipo].total += total;
+      }
+    });
+    
+    // Procesar datos mensuales por operador
+    const operadoresMensuales = {};
+    const nombresMeses = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 
+      'Jul', 'Ago', 'Sept', 'Oct', 'Nov', 'Dic'
+    ];
+    
+    danosMensualesPorOperadorResult.forEach(item => {
+      const operador = item.nombre_completo;
+      const mes = item.mes;
+      const total = parseInt(item.cantidad_total_danos || 0);
+      const tipoZona = item.tipo_zona;
+      
+      if (!operadoresMensuales[operador]) {
+        operadoresMensuales[operador] = {
+          nombre: operador,
+          tipoZona: tipoZona,
+          meses: {},
+          totalAnual: 0
+        };
+        // Inicializar todos los meses en 0
+        for (let m = 1; m <= 12; m++) {
+          operadoresMensuales[operador].meses[m] = 0;
+        }
+      }
+      operadoresMensuales[operador].meses[mes] = total;
+      operadoresMensuales[operador].totalAnual += total;
+    });
+    
+    // Convertir a array y ordenar por total anual descendente
+    const operadoresArray = Object.values(operadoresMensuales)
+      .sort((a, b) => b.totalAnual - a.totalAnual);
+    
+    // Calcular totales anuales
+    const totalDanos = resumenAnualTipo.HEMBRA.total;
+    const totalesAnuales = {
+      totalOperadores: operadoresArray.length,
+      totalDanos: totalDanos,
+      cantidadTotalDanos: totalDanos,
+      totalPlanillasAfectadas: 0,
+      promedioDanosPorOperador: operadoresArray.length > 0 ? 
+        Math.round((totalDanos / operadoresArray.length) * 100) / 100 : 0
+    };
+    
+    const response = {
+      resumenAnualTipo,
+      operadoresMensuales: operadoresArray,
+      topOperadores: topOperadoresResult.map(item => ({
+        nombreCompleto: item.nombre_completo,
+        cantidadTotalDanos: parseInt(item.cantidad_total_danos || 0),
+        mesesConDanos: parseInt(item.meses_con_danos || 0),
+        planillasAfectadas: parseInt(item.planillas_afectadas || 0),
+        promedioDanosPorIncidente: parseFloat(item.promedio_danos_por_incidente || 0)
+      })),
+      totalesAnuales,
+      nombresMeses,
+      metadata: {
+        year: currentYear,
+        currentMonth: currentMonth,
+        timestamp: new Date().toISOString(),
+        fuente: 'vw_ordenes_unificada_completa con JOIN sector-zona y SUM - SOLO HEMBRA (Zonas 1,3)',
+        filtros: {
+          year: currentYear,
+          origen: origen || 'todos',
+          zonas: '1, 3',
+          tipo: 'HEMBRA'
+        }
+      }
+    };
+    
+    console.log('✅ Estadísticas de daños por operador - SOLO HEMBRA obtenidas exitosamente');
+    console.log(`📊 Resumen: HEMBRA=${resumenAnualTipo.HEMBRA.total}, TOTAL=${totalDanos}`);
+    
+    res.json(response);
+  } catch (error) {
+    console.error('❌ Error al obtener estadísticas de daños por operador - SOLO HEMBRA:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+// NUEVA FUNCIÓN: Daños por Operador - Solo Macho (Zona 2)
+exports.getDanoStatsPorOperadorMacho = async (req, res) => {
+  try {
+    console.log('🔄 Iniciando obtención de estadísticas de daños por operador - SOLO MACHO (Zona 2)...');
+    
+    // Obtener parámetros de filtro
+    const { year, origen } = req.query;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    
+    // Configurar timeout para consultas
+    const queryTimeout = 12000;
+    
+    // Construir filtros para la vista unificada - SOLO ZONA 2 (MACHO)
+    let whereClause = 'WHERE YEAR(v.fechaOrdenServicio) = ? AND s.zona_id = 2 AND z.tipo = "MACHO"';
+    let params = [currentYear];
+    
+    if (origen && origen !== 'todos') {
+      whereClause += ' AND v.source = ?';
+      params.push(origen);
+    }
+    
+    // 1. RESUMEN ANUAL POR TIPO - SOLO MACHO
+    const [resumenAnualTipoResult] = await sequelize.query(`
+      SELECT 
+        COALESCE(z.tipo, 'MACHO') as tipo_zona,
+        MONTH(v.fechaOrdenServicio) as mes,
+        SUM(v.cantidadDano) as cantidad_total_danos
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ${whereClause}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY 
+        COALESCE(z.tipo, 'MACHO'),
+        MONTH(v.fechaOrdenServicio)
+      ORDER BY tipo_zona, mes
+    `, {
+      replacements: params,
+      timeout: queryTimeout
+    });
+    
+    // 2. DAÑOS MENSUALES POR OPERADOR - SOLO MACHO
+    const [danosMensualesPorOperadorResult] = await sequelize.query(`
+      SELECT 
+        v.nombreOperador as nombre_completo,
+        MONTH(v.fechaOrdenServicio) as mes,
+        SUM(v.cantidadDano) as cantidad_total_danos,
+        COALESCE(z.tipo, 'MACHO') as tipo_zona
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ${whereClause}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY v.nombreOperador, MONTH(v.fechaOrdenServicio), COALESCE(z.tipo, 'MACHO')
+      ORDER BY v.nombreOperador, mes
+    `, {
+      replacements: params,
+      timeout: queryTimeout
+    });
+    
+    // 3. TOP OPERADORES CON MÁS DAÑOS - SOLO MACHO
+    const [topOperadoresResult] = await sequelize.query(`
+      SELECT 
+        v.nombreOperador as nombre_completo,
+        SUM(v.cantidadDano) as cantidad_total_danos,
+        COUNT(DISTINCT MONTH(v.fechaOrdenServicio)) as meses_con_danos,
+        COUNT(DISTINCT v.idOrdenServicio) as planillas_afectadas,
+        ROUND(AVG(v.cantidadDano), 2) as promedio_danos_por_incidente
+      FROM vw_ordenes_unificada_completa v
+      LEFT JOIN sector s ON v.nombreSector = s.nombre
+      LEFT JOIN zona z ON s.zona_id = z.id
+      ${whereClause.replace('v.', '')}
+      AND v.cantidadDano > 0
+      AND v.nombreOperador != 'Sin operador'
+      GROUP BY v.nombreOperador
+      HAVING cantidad_total_danos > 0
+      ORDER BY cantidad_total_danos DESC
+      LIMIT 10
+    `, {
+      replacements: params,
+      timeout: queryTimeout
+    });
+    
+    // Procesar datos para el formato requerido
+    const resumenAnualTipo = {
+      MACHO: { total: 0, meses: {} }
+    };
+    
+    // Inicializar meses para MACHO
+    for (let mes = 1; mes <= 12; mes++) {
+      resumenAnualTipo.MACHO.meses[mes] = 0;
+    }
+    
+    // Procesar datos del resumen anual
+    resumenAnualTipoResult.forEach(item => {
+      const tipo = item.tipo_zona;
+      const mes = item.mes;
+      const total = parseInt(item.cantidad_total_danos || 0);
+      if (resumenAnualTipo[tipo]) {
+        resumenAnualTipo[tipo].meses[mes] = total;
+        resumenAnualTipo[tipo].total += total;
+      }
+    });
+    
+    // Procesar datos mensuales por operador
+    const operadoresMensuales = {};
+    const nombresMeses = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 
+      'Jul', 'Ago', 'Sept', 'Oct', 'Nov', 'Dic'
+    ];
+    
+    danosMensualesPorOperadorResult.forEach(item => {
+      const operador = item.nombre_completo;
+      const mes = item.mes;
+      const total = parseInt(item.cantidad_total_danos || 0);
+      const tipoZona = item.tipo_zona;
+      
+      if (!operadoresMensuales[operador]) {
+        operadoresMensuales[operador] = {
+          nombre: operador,
+          tipoZona: tipoZona,
+          meses: {},
+          totalAnual: 0
+        };
+        // Inicializar todos los meses en 0
+        for (let m = 1; m <= 12; m++) {
+          operadoresMensuales[operador].meses[m] = 0;
+        }
+      }
+      operadoresMensuales[operador].meses[mes] = total;
+      operadoresMensuales[operador].totalAnual += total;
+    });
+    
+    // Convertir a array y ordenar por total anual descendente
+    const operadoresArray = Object.values(operadoresMensuales)
+      .sort((a, b) => b.totalAnual - a.totalAnual);
+    
+    // Calcular totales anuales
+    const totalDanos = resumenAnualTipo.MACHO.total;
+    const totalesAnuales = {
+      totalOperadores: operadoresArray.length,
+      totalDanos: totalDanos,
+      cantidadTotalDanos: totalDanos,
+      totalPlanillasAfectadas: 0,
+      promedioDanosPorOperador: operadoresArray.length > 0 ? 
+        Math.round((totalDanos / operadoresArray.length) * 100) / 100 : 0
+    };
+    
+    const response = {
+      resumenAnualTipo,
+      operadoresMensuales: operadoresArray,
+      topOperadores: topOperadoresResult.map(item => ({
+        nombreCompleto: item.nombre_completo,
+        cantidadTotalDanos: parseInt(item.cantidad_total_danos || 0),
+        mesesConDanos: parseInt(item.meses_con_danos || 0),
+        planillasAfectadas: parseInt(item.planillas_afectadas || 0),
+        promedioDanosPorIncidente: parseFloat(item.promedio_danos_por_incidente || 0)
+      })),
+      totalesAnuales,
+      nombresMeses,
+      metadata: {
+        year: currentYear,
+        currentMonth: currentMonth,
+        timestamp: new Date().toISOString(),
+        fuente: 'vw_ordenes_unificada_completa con JOIN sector-zona y SUM - SOLO MACHO (Zona 2)',
+        filtros: {
+          year: currentYear,
+          origen: origen || 'todos',
+          zonas: '2',
+          tipo: 'MACHO'
+        }
+      }
+    };
+    
+    console.log('✅ Estadísticas de daños por operador - SOLO MACHO obtenidas exitosamente');
+    console.log(`📊 Resumen: MACHO=${resumenAnualTipo.MACHO.total}, TOTAL=${totalDanos}`);
+    
+    res.json(response);
+  } catch (error) {
+    console.error('❌ Error al obtener estadísticas de daños por operador - SOLO MACHO:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor',
+      message: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 };

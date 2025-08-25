@@ -1,8 +1,9 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ResponsiveProvider } from './context/ResponsiveContext';
+import { ResponsiveProvider, useResponsive } from './context/ResponsiveContext';
 import RouterWrapper from './components/RouterWrapper';
+import './styles/responsive.css';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import PetroleoAnalisis from './pages/PetroleoAnalisis';
@@ -12,6 +13,7 @@ import Danos from './pages/Danos';
 import DanosHistoricosTest from './pages/DanosHistoricosTest';
 import DanosAcumulados from './pages/DanosAcumulados';
 import DanosPorOperador from './components/DanosPorOperador';
+
 import DanosMeta from './pages/DanosMeta';
 import Planillas from './pages/Planillas';
 import Zonas from './pages/Zonas';
@@ -21,12 +23,14 @@ import Barredores from './pages/Barredores';
 import Maquinas from './pages/Maquinas';
 import Operadores from './pages/Operadores';
 import BulkUpload from './pages/BulkUpload';
+import GeneradorPDF from './pages/GeneradorPDF';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import LoadingSpinner from './components/LoadingSpinner';
 import EnvironmentBanner from './components/EnvironmentBanner';
+import ErrorBoundary from './utils/errorBoundary';
 
 function PrivateRoute({ children }) {
   const { token, loading } = useAuth();
@@ -40,6 +44,7 @@ function PrivateRoute({ children }) {
 
 function AppLayout({ children }) {
   const { token } = useAuth();
+  const { isMobile } = useResponsive();
   
   if (!token) {
     return <Navigate to="/login" />;
@@ -49,7 +54,13 @@ function AppLayout({ children }) {
     <div className="panel-container">
       <Sidebar />
       <Navbar />
-      <div className="panel-content">
+      <div 
+        className="panel-content"
+        style={{
+          marginLeft: isMobile ? 0 : '280px',
+          transition: 'margin-left 0.3s ease'
+        }}
+      >
         <div className="content-area">
           {children}
         </div>
@@ -70,7 +81,8 @@ function AppRoutes() {
       <Route path="/danos" element={<PrivateRoute><AppLayout><Danos /></AppLayout></PrivateRoute>} />
       <Route path="/danos-historicos" element={<PrivateRoute><AppLayout><DanosHistoricosTest /></AppLayout></PrivateRoute>} />
       <Route path="/danos-acumulados" element={<PrivateRoute><AppLayout><DanosAcumulados /></AppLayout></PrivateRoute>} />
-      <Route path="/danos-por-operador" element={<PrivateRoute><AppLayout><DanosPorOperador /></AppLayout></PrivateRoute>} />
+              <Route path="/danos-por-operador" element={<PrivateRoute><AppLayout><DanosPorOperador /></AppLayout></PrivateRoute>} />
+
       <Route path="/danos-meta" element={<PrivateRoute><AppLayout><DanosMeta /></AppLayout></PrivateRoute>} />
       <Route path="/planillas" element={<PrivateRoute><AppLayout><Planillas /></AppLayout></PrivateRoute>} />
       <Route path="/usuarios" element={<PrivateRoute><AppLayout><Usuarios /></AppLayout></PrivateRoute>} />
@@ -80,6 +92,7 @@ function AppRoutes() {
       <Route path="/operadores" element={<PrivateRoute><AppLayout><Operadores /></AppLayout></PrivateRoute>} />
       <Route path="/maquinas" element={<PrivateRoute><AppLayout><Maquinas /></AppLayout></PrivateRoute>} />
       <Route path="/bulk-upload" element={<PrivateRoute><AppLayout><BulkUpload /></AppLayout></PrivateRoute>} />
+      <Route path="/generador-pdf" element={<PrivateRoute><AppLayout><GeneradorPDF /></AppLayout></PrivateRoute>} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
@@ -87,15 +100,17 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <AuthProvider>
-        <ResponsiveProvider>
-          <RouterWrapper>
-            <AppRoutes />
-            <EnvironmentBanner />
-          </RouterWrapper>
-        </ResponsiveProvider>
-      </AuthProvider>
-    </LocalizationProvider>
+    <ErrorBoundary>
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <AuthProvider>
+          <ResponsiveProvider>
+            <RouterWrapper>
+              <AppRoutes />
+              <EnvironmentBanner />
+            </RouterWrapper>
+          </ResponsiveProvider>
+        </AuthProvider>
+      </LocalizationProvider>
+    </ErrorBoundary>
   );
 }

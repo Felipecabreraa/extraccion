@@ -326,6 +326,28 @@ exports.getDashboardMetrics = async (req, res) => {
       Pabellon.count({ timeout: queryTimeout })
     ]);
 
+    // 7. Calcular daños registrados del año seleccionado
+    let danosMes = 0;
+    const actualYear = new Date().getFullYear();
+    
+    // Si el año seleccionado es posterior al actual, los daños deben ser 0
+    if (currentYear <= actualYear) {
+      // Calcular daños reales del año seleccionado
+      const danosResult = await Dano.count({
+        where: {
+          planilla_id: {
+            [Op.in]: sequelize.literal(`(
+              SELECT id FROM planilla 
+              WHERE YEAR(fecha_inicio) = ${currentYear}
+            )`)
+          }
+        },
+        timeout: queryTimeout
+      });
+      danosMes = danosResult || 0;
+    }
+    // Si el año seleccionado es posterior al actual, danosMes ya está en 0
+
     console.log('Métricas obtenidas desde vista unificada vw_ordenes_2025_actual');
 
     // Cálculo de eficiencia real
@@ -425,8 +447,8 @@ exports.getDashboardMetrics = async (req, res) => {
       // Eficiencia
       eficienciaGlobal: eficienciaActual,
       
-      // Daños (mantener por ahora)
-      danosMes: 3,
+      // Daños calculados dinámicamente
+      danosMes: danosMes,
       danosPorTipo: [],
       
       // Alertas
@@ -2230,6 +2252,27 @@ exports.getDanosAcumulados = async (req, res) => {
     
     // Preparar datos para gráficos
     const datosGrafico = [];
+    
+    // Obtener mes actual para ajustar la línea del real acumulado
+    const fechaActual = new Date();
+    const mesActual = fechaActual.getMonth() + 1; // getMonth() devuelve 0-11
+    const anioActual = fechaActual.getFullYear();
+    
+    // Determinar hasta qué mes mostrar datos reales
+    let mesLimiteReal = 12; // Por defecto mostrar todos los meses
+    if (currentYear === anioActual) {
+      // Si es el año actual, solo mostrar hasta el mes actual
+      mesLimiteReal = mesActual;
+    } else if (currentYear < anioActual) {
+      // Si es un año anterior, mostrar todos los meses
+      mesLimiteReal = 12;
+    } else {
+      // Si es un año futuro, no mostrar datos reales
+      mesLimiteReal = 0;
+    }
+    
+    console.log(`📅 Año consulta: ${currentYear}, Año actual: ${anioActual}, Mes actual: ${mesActual}, Mes límite real: ${mesLimiteReal}`);
+    
     for (let mes = 1; mes <= 12; mes++) {
       const datosMes = {
         mes: mes,
@@ -2239,9 +2282,24 @@ exports.getDanosAcumulados = async (req, res) => {
       
       // Datos del año actual
       if (datosPorAnio[currentYear] && datosPorAnio[currentYear].meses[mes]) {
-        datosMes.real_acumulado = datosPorAnio[currentYear].meses[mes].real_acumulado;
+        // Para el real acumulado, solo mostrar datos hasta el mes límite
+        if (mes <= mesLimiteReal) {
+          datosMes.real_acumulado = datosPorAnio[currentYear].meses[mes].real_acumulado;
+          datosMes.real_acumulado_formateado = datosPorAnio[currentYear].meses[mes].real_acumulado_formateado;
+        } else {
+          // Para meses futuros, mantener el último valor conocido o 0
+          const ultimoMesConDatos = Math.max(0, mesLimiteReal);
+          if (ultimoMesConDatos > 0 && datosPorAnio[currentYear].meses[ultimoMesConDatos]) {
+            datosMes.real_acumulado = datosPorAnio[currentYear].meses[ultimoMesConDatos].real_acumulado;
+            datosMes.real_acumulado_formateado = datosPorAnio[currentYear].meses[ultimoMesConDatos].real_acumulado_formateado;
+          } else {
+            datosMes.real_acumulado = 0;
+            datosMes.real_acumulado_formateado = formatCurrency(0);
+          }
+        }
+        
+        // El presupuesto siempre se muestra completo (valores asignados para todo el año)
         datosMes.ppto_acumulado = datosPorAnio[currentYear].meses[mes].ppto_acumulado;
-        datosMes.real_acumulado_formateado = datosPorAnio[currentYear].meses[mes].real_acumulado_formateado;
         datosMes.ppto_acumulado_formateado = datosPorAnio[currentYear].meses[mes].ppto_acumulado_formateado;
       } else {
         datosMes.real_acumulado = 0;
@@ -2281,6 +2339,20 @@ exports.getDanosAcumulados = async (req, res) => {
         timestamp: new Date().toISOString(),
         fuente: 'vista_danos_acumulados',
         anio_consulta: currentYear
+      },
+      // Información adicional para el frontend sobre el ajuste dinámico
+      ajuste_dinamico: {
+        mes_actual: mesActual,
+        anio_actual: anioActual,
+        mes_limite_real: mesLimiteReal,
+        es_anio_actual: currentYear === anioActual,
+        es_anio_futuro: currentYear > anioActual,
+        es_anio_pasado: currentYear < anioActual,
+        descripcion: currentYear === anioActual 
+          ? `Mostrando datos reales hasta ${getMonthName(mesActual)} ${anioActual}`
+          : currentYear < anioActual 
+            ? `Mostrando todos los datos del año ${currentYear}`
+            : `Año futuro - sin datos reales disponibles`
       }
     };
     

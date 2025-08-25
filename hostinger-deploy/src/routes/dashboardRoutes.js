@@ -25,6 +25,12 @@ router.get('/danos/test-por-operador', dashboardController.getDanoStatsPorOperad
 // NUEVA RUTA DE PRUEBA PARA ANÁLISIS PETRÓLEO (sin autenticación)
 router.get('/petroleo/test-metrics', dashboardController.getPetroleoMetrics);
 
+// RUTAS DE PRUEBA PARA DAÑOS ACUMULADOS (sin autenticación)
+router.get('/danos-acumulados', dashboardController.getDanosAcumulados);
+router.get('/danos-acumulados/vista-raw', dashboardController.getVistaRaw);
+router.get('/danos-acumulados/tabla-raw', dashboardController.getTablaRaw);
+router.post('/danos-acumulados/registro', dashboardController.crearActualizarDanosMensual);
+
 // Aplicar autenticación al resto de rutas
 router.use(authenticateToken);
 

@@ -12,6 +12,7 @@ export const ROUTES = {
   DANOS_HISTORICOS: '/danos-historicos',
   DANOS_ACUMULADOS: '/danos-acumulados',
   DANOS_POR_OPERADOR: '/danos-por-operador',
+
   DANOS_META: '/danos-meta',
   PLANILLAS: '/planillas',
   USUARIOS: '/usuarios',
@@ -21,6 +22,7 @@ export const ROUTES = {
   OPERADORES: '/operadores',
   MAQUINAS: '/maquinas',
   BULK_UPLOAD: '/bulk-upload',
+  GENERADOR_PDF: '/generador-pdf',
   
   // Ruta por defecto
   DEFAULT: '/dashboard'
@@ -71,6 +73,7 @@ export const NAV_ITEMS = [
     icon: 'PeopleIcon',
     roles: ['administrador', 'supervisor']
   },
+
   { 
     label: 'Metas de Daños', 
     path: ROUTES.DANOS_META, 
@@ -124,6 +127,12 @@ export const NAV_ITEMS = [
     path: ROUTES.BULK_UPLOAD, 
     icon: 'CloudUploadIcon',
     roles: ['administrador']
+  },
+  { 
+    label: 'Generador PDF', 
+    path: ROUTES.GENERADOR_PDF, 
+    icon: 'PictureAsPdfIcon',
+    roles: ['administrador', 'supervisor']
   }
 ];
 
