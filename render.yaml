@@ -23,7 +23,7 @@ services:
       - key: CORS_ORIGIN
         value: https://extraccion-frontend-test.onrender.com
       - key: PORT
-        value: 3001
+        value: 10000
 
   - type: web
     name: extraccion-frontend-test
