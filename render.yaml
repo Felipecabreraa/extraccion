@@ -8,6 +8,7 @@ services:
               npm ci --only=production
               npm install -g sequelize-cli
               npx sequelize-cli db:migrate || echo "Migraciones completadas o ya existentes"
+              npx puppeteer browsers install chrome
               node fix-user-roles.js
     startCommand: cd backend && node start-robust.js
     envVars:
@@ -29,9 +30,9 @@ services:
       - key: CORS_ORIGIN
         value: https://extraccion-frontend-test.onrender.com
                     - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-                value: true
-              - key: PUPPETEER_EXECUTABLE_PATH
-                value: /usr/bin/google-chrome
+                value: false
+              - key: PUPPETEER_CACHE_DIR
+                value: /opt/render/.cache/puppeteer
     healthCheckPath: /health
     autoDeploy: true
 

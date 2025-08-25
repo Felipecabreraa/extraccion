@@ -117,8 +117,7 @@ async function setupPuppeteer() {
          '--disable-gpu',
          '--disable-web-security',
          '--disable-features=VizDisplayCompositor'
-       ],
-       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
+       ]
      });
     
     console.log('✅ Puppeteer configurado correctamente');
@@ -148,8 +147,7 @@ async function setupPuppeteer() {
            '--disable-setuid-sandbox',
            '--disable-dev-shm-usage',
            '--disable-gpu'
-         ],
-         executablePath: '/usr/bin/google-chrome'
+         ]
        });
        
        console.log('✅ Configuración alternativa exitosa');
