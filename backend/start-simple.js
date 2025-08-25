@@ -4,12 +4,16 @@
 console.log('🚀 Iniciando servidor simple para Render...');
 
 // Forzar variables de entorno críticas
-process.env.PORT = '3000';
 process.env.NODE_ENV = 'production';
 
-console.log('📊 Variables de entorno forzadas:');
-console.log('   PORT:', process.env.PORT);
+// Usar el puerto que Render espera (10000) o 3000 como fallback
+const PORT = process.env.PORT || 3000;
+
+console.log('📊 Variables de entorno configuradas:');
+console.log('   PORT:', PORT);
 console.log('   NODE_ENV:', process.env.NODE_ENV);
+console.log('   DB_HOST:', process.env.DB_HOST);
+console.log('   DB_NAME:', process.env.DB_NAME);
 
 // Verificar variables de base de datos
 const dbVars = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
@@ -28,7 +32,6 @@ const cors = require('cors');
 const sequelize = require('./src/config/database');
 
 const app = express();
-const PORT = 3000;
 
 // Configuración básica
 app.use(cors());

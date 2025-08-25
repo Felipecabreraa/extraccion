@@ -12,8 +12,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
+      # PORT se configura automáticamente por Render
       - key: DB_HOST
         value: trn.cl
       - key: DB_USER
