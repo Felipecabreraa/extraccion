@@ -8,7 +8,7 @@
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
     "dev": "nodemon src/app.js",
-    "start": "node start-with-routes.js",
+    "start": "node start-robust.js",
     "start:render": "node start-render.js",
     "build": "exit 0",
     "lint": "eslint src/",
