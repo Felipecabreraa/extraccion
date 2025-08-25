@@ -103,21 +103,23 @@ async function setupPuppeteer() {
     
     const puppeteer = require('puppeteer');
     
-    // Configurar Puppeteer para Render
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null
-    });
+         // Configurar Puppeteer para Render
+     const browser = await puppeteer.launch({
+       headless: true,
+       args: [
+         '--no-sandbox',
+         '--disable-setuid-sandbox',
+         '--disable-dev-shm-usage',
+         '--disable-accelerated-2d-canvas',
+         '--no-first-run',
+         '--no-zygote',
+         '--single-process',
+         '--disable-gpu',
+         '--disable-web-security',
+         '--disable-features=VizDisplayCompositor'
+       ],
+       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
+     });
     
     console.log('✅ Puppeteer configurado correctamente');
     
@@ -135,21 +137,43 @@ async function setupPuppeteer() {
   } catch (error) {
     console.error('❌ Error configurando Puppeteer:', error.message);
     
-    // Configuración alternativa
-    console.log('🔄 Intentando configuración alternativa...');
-    try {
-      const puppeteer = require('puppeteer');
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-      
-      console.log('✅ Configuración alternativa exitosa');
-      await browser.close();
-      
-    } catch (altError) {
-      console.error('❌ Configuración alternativa también falló:', altError.message);
-    }
+         // Configuración alternativa
+     console.log('🔄 Intentando configuración alternativa...');
+     try {
+       const puppeteer = require('puppeteer');
+       const browser = await puppeteer.launch({
+         headless: true,
+         args: [
+           '--no-sandbox', 
+           '--disable-setuid-sandbox',
+           '--disable-dev-shm-usage',
+           '--disable-gpu'
+         ],
+         executablePath: '/usr/bin/google-chrome'
+       });
+       
+       console.log('✅ Configuración alternativa exitosa');
+       await browser.close();
+       
+     } catch (altError) {
+       console.error('❌ Configuración alternativa también falló:', altError.message);
+       
+       // Última configuración de emergencia
+       console.log('🆘 Intentando configuración de emergencia...');
+       try {
+         const puppeteer = require('puppeteer');
+         const browser = await puppeteer.launch({
+           headless: true,
+           args: ['--no-sandbox']
+         });
+         
+         console.log('✅ Configuración de emergencia exitosa');
+         await browser.close();
+         
+       } catch (emergencyError) {
+         console.error('❌ Configuración de emergencia falló:', emergencyError.message);
+       }
+     }
   }
 }
 
@@ -196,6 +220,10 @@ async function startServer() {
      // Corregir roles de usuarios
      console.log('🔧 Corrigiendo roles de usuarios...');
      require('./fix-user-roles.js');
+     
+     // Verificar Chrome disponible
+     console.log('🔍 Verificando Chrome disponible...');
+     require('./check-chrome.js');
      
      // Configurar Puppeteer integrado
      await setupPuppeteer();
