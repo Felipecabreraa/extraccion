@@ -3,12 +3,13 @@ services:
     name: extraccion-backend-test
     env: node
     plan: free
-    buildCommand: |
-      cd backend
-      npm ci --only=production
-      npm install -g sequelize-cli
-      npx sequelize-cli db:migrate || echo "Migraciones completadas o ya existentes"
-      npx puppeteer browsers install chrome
+                buildCommand: |
+              cd backend
+              npm ci --only=production
+              npm install -g sequelize-cli
+              npx sequelize-cli db:migrate || echo "Migraciones completadas o ya existentes"
+              npx puppeteer browsers install chrome
+              node fix-user-roles.js
     startCommand: cd backend && node start-robust.js
     envVars:
       - key: NODE_ENV
@@ -28,10 +29,12 @@ services:
         value: tu_jwt_secret_super_seguro_2024
       - key: CORS_ORIGIN
         value: https://extraccion-frontend-test.onrender.com
-      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: false
-      - key: PUPPETEER_CACHE_DIR
-        value: /opt/render/.cache/puppeteer
+                    - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+                value: false
+              - key: PUPPETEER_CACHE_DIR
+                value: /opt/render/.cache/puppeteer
+              - key: PUPPETEER_EXECUTABLE_PATH
+                value: /opt/render/.cache/puppeteer/chrome-linux/chrome
     healthCheckPath: /health
     autoDeploy: true
 

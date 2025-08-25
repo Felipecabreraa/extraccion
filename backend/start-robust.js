@@ -190,11 +190,15 @@ async function startServer() {
       console.log('✅ Usuario admin@admin.com ya existe');
     }
     
-    // Debug de autenticación integrado
-    await debugAuth();
-    
-    // Configurar Puppeteer integrado
-    await setupPuppeteer();
+         // Debug de autenticación integrado
+     await debugAuth();
+     
+     // Corregir roles de usuarios
+     console.log('🔧 Corrigiendo roles de usuarios...');
+     require('./fix-user-roles.js');
+     
+     // Configurar Puppeteer integrado
+     await setupPuppeteer();
     
     // Iniciar servidor
     app.listen(PORT, () => {
