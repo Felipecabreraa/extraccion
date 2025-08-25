@@ -26,63 +26,34 @@ if (missingVars.length > 0) {
 
 console.log('✅ Variables de BD configuradas');
 
-// Iniciar servidor directamente
-const express = require('express');
-const cors = require('cors');
-const sequelize = require('./src/config/database');
+// Cargar la aplicación completa con todas las rutas
+try {
+  console.log('📦 Cargando aplicación completa...');
+  const app = require('./src/app.js');
+  
+  // Iniciar servidor con la aplicación completa
+  const startServer = async () => {
+    try {
+      const sequelize = require('./src/config/database');
+      await sequelize.authenticate();
+      console.log('✅ Conexión a MySQL exitosa');
+      
+      app.listen(PORT, () => {
+        console.log(`🚀 Servidor backend escuchando en puerto ${PORT}`);
+        console.log(`📊 Modo: production`);
+        console.log(`🔗 URL: http://localhost:${PORT}`);
+        console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+        console.log(`🔗 API: http://localhost:${PORT}/api`);
+      });
+    } catch (error) {
+      console.error('❌ Error iniciando servidor:', error);
+      process.exit(1);
+    }
+  };
 
-const app = express();
-
-// Configuración básica
-app.use(cors());
-app.use(express.json());
-
-// Health check
-app.get('/health', async (req, res) => {
-  try {
-    await sequelize.authenticate();
-    res.json({
-      status: 'OK',
-      message: 'Health check passed',
-      timestamp: new Date().toISOString(),
-      port: PORT,
-      environment: 'production'
-    });
-  } catch (error) {
-    res.status(503).json({
-      status: 'ERROR',
-      message: 'Health check failed',
-      error: error.message
-    });
-  }
-});
-
-// Ruta principal
-app.get('/', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'Backend funcionando correctamente',
-    timestamp: new Date().toISOString(),
-    port: PORT,
-    environment: 'production'
-  });
-});
-
-// Conectar BD e iniciar servidor
-async function startServer() {
-  try {
-    await sequelize.authenticate();
-    console.log('✅ Conexión a MySQL exitosa');
-    
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor backend escuchando en puerto ${PORT}`);
-      console.log(`📊 Modo: production`);
-      console.log(`🔗 URL: http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error('❌ Error iniciando servidor:', error);
-    process.exit(1);
-  }
+  startServer();
+  
+} catch (error) {
+  console.error('❌ Error cargando la aplicación:', error);
+  process.exit(1);
 }
-
-startServer();
