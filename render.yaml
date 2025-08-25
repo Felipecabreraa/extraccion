@@ -8,7 +8,8 @@ services:
       npm ci --only=production
       npm install -g sequelize-cli
       npx sequelize-cli db:migrate || echo "Migraciones completadas o ya existentes"
-    startCommand: cd backend && node start-render.js
+      echo "PORT=3000" > .env
+    startCommand: cd backend && PORT=3000 node start-render.js
     envVars:
       - key: NODE_ENV
         value: production

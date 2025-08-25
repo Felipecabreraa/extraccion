@@ -8,7 +8,7 @@
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
     "dev": "nodemon src/app.js",
-    "start": "node src/app.js",
+    "start": "PORT=3000 node src/app.js",
     "start:render": "node start-render.js",
     "build": "exit 0",
     "lint": "eslint src/",
