@@ -3,8 +3,8 @@ services:
     name: extraccion-backend-test
     env: node
     plan: free
-    buildCommand: node migrate-safe.js
-    startCommand: npm start
+    buildCommand: cd backend && npm install && node migrate-safe.js
+    startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
         value: production
