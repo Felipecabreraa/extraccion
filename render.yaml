@@ -8,7 +8,7 @@ services:
       npm ci --only=production
       npm install -g sequelize-cli
       npx sequelize-cli db:migrate || echo "Migraciones completadas o ya existentes"
-    startCommand: cd backend && node start-simple.js
+    startCommand: cd backend && node start-with-routes.js
     envVars:
       - key: NODE_ENV
         value: production
